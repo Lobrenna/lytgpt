@@ -105,14 +105,15 @@ function appendMessageToChat(role, htmlContent) {
  */
 async function sendMessage(chatId, message) {
   console.log("Sending message to chat with ID:", chatId);
-  console.log("Full URL:", `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`);
+  const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
+  console.log("Full URL:", url);
   console.log("Current chat state:", {
     currentChatId,
     selectedModel,
     message
   });
 
-  const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
