@@ -196,8 +196,11 @@
                     throw new Error('Kunne ikke opprette ny chat');
                 }
 
+                console.log("Sender melding til chat:", currentChatId);
                 const encodedChatId = encodeURIComponent(currentChatId);
-                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
+                console.log("API URL:", `${API_BASE_URL}/chats/${encodedChatId}/messages`);  // Legg til logging
+                
+                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {  // Endret fra /message til /messages
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
