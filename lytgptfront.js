@@ -3,6 +3,11 @@
 // URL til FastAPI-backenden (lokal utvikling)
 const API_BASE_URL = "http://localhost:8000";
 
+console.log("API endpoints configuration:", {
+  messagesEndpoint: `${API_BASE_URL}/chats/[chatId]/messages`,
+  baseUrl: API_BASE_URL
+});
+
 // Elementer fra Webflow (juster ID-ene om nødvendig)
 const modelSelector = document.getElementById('model-selector');
 const chatSelector = document.getElementById('chat-selector');
