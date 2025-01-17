@@ -133,6 +133,32 @@ async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  
+  console.log("Alle file inputs funnet:", fileInputs.length);
+  
+  // Samle alle filer som er valgt
+  let hasFiles = false;
+  const formData = new FormData();
+  formData.append('message', message);
+  
+  // Samle alle filer fra inputs som har en fil valgt
+  let fileCount = 0;
+  fileInputs.forEach((input) => {
+    const uploadDiv = input.closest('.w-file-upload');
+    const successView = uploadDiv?.querySelector('.w-file-upload-success');
+    
+    if (input.files && 
+        input.files[0] && 
+        successView && 
+        !successView.classList.contains('w-hidden')) {
+        
+        fileCount++;
+        console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
+        formData.append('files', input.files[0]);
+        hasFiles = true;
+    }
+  });
 
   try {
     // Legg til brukerens melding i chatten
@@ -206,15 +232,16 @@ async function createNewChat() {
     if (response.ok) {
       const chat = await response.json();
       currentChatId = chat.title;
-      console.log("Ny chat opprettet med ID:", currentChatId);
       if (modelSelector) {
         modelSelector.value = selectedModel;
       }
       await fetchChats();
       if (chatSelector) {
         chatSelector.value = currentChatId;
+        await loadChat(currentChatId);
       }
       appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+      console.log("Ny chat opprettet med ID:", currentChatId);
     } else {
       console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
       alert("Feil ved opprettelse av ny chat.");
