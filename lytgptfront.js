@@ -101,8 +101,33 @@
     }
 
     /**
-     * onSendMessage
-     *  - Henter brukerens melding => viser urørt i chat => sender til backend => mottar svar => viser urørt
+     * sendMessage - Hjelpefunksjon for å sende meldinger til backend
+     */
+    async function sendMessage(chatId, message) {
+        console.log("Sender melding til:", `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`);
+        
+        const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                preferred_model: selectedModel
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("Response error data:", errorData);
+            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * onSendMessage - Håndterer sending av meldinger
      */
     async function onSendMessage() {
         if (!chatInput || !chatInput.value.trim()) return;
@@ -943,25 +968,4 @@
             chatInput.style.color = "#000";
         }
     });
-
-    // Legg til en hjelpefunksjon for å sende meldinger
-    async function sendMessage(chatId, message, model = null) {
-        const encodedChatId = encodeURIComponent(chatId);
-        const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: message,
-                preferred_model: model || selectedModel
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}`);
-        }
-        
-        return await response.json();
-    }
 </script>
