@@ -209,12 +209,18 @@ async function createNewChat() {
     if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
       selectedModel = modelSelector.options[0].value;
     }
+    
+    // Generer en URL-vennlig chat ID med understrek istedenfor mellomrom
+    const now = new Date();
+    const chatId = `Chat_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    
     console.log("Oppretter ny chat med modell:", selectedModel);
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: "Ny chat", model: selectedModel })
+      body: JSON.stringify({ title: chatId, model: selectedModel })
     });
+    
     if (response.ok) {
       const chat = await response.json();
       currentChatId = chat.title;
