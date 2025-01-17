@@ -197,7 +197,7 @@
                 }
 
                 const encodedChatId = encodeURIComponent(currentChatId);
-                response = await fetch(`${API_BASE_URL}/chat/${encodedChatId}/messages`, {
+                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
