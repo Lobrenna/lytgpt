@@ -375,41 +375,44 @@ function populateModelSelector(models) {
 async function fetchChats() {
     try {
         const response = await fetch(`${API_BASE_URL}/chats`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const chats = await response.json();
-        
         console.log('Mottatte chats fra backend:', chats); // Debug
-        console.log('Chat selector element:', chatSelector); // Debug
-        console.log('Current chat ID:', currentChatId); // Debug
         
         if (chatSelector) {
             // Tøm eksisterende options
             chatSelector.innerHTML = '';
             
-            // Legg til en default option
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'Velg chat...';
-            chatSelector.appendChild(defaultOption);
+            // Legg til "Ny chat" option
+            const newChatOption = document.createElement('option');
+            newChatOption.value = "new";
+            newChatOption.text = "Ny chat";
+            chatSelector.appendChild(newChatOption);
             
-            // Legg til alle chats
+            // Legg til eksisterende chats
             chats.forEach(chat => {
-                const option = document.createElement('option');
-                option.value = chat.title;  // Bruker chat.title som verdi
-                option.textContent = chat.title;
-                if (currentChatId && chat.title === currentChatId) {
-                    option.selected = true;
+                if (chat !== "Ny chat") { // Unngå duplikat av "Ny chat"
+                    const opt = document.createElement('option');
+                    opt.value = chat;
+                    opt.text = chat;
+                    chatSelector.appendChild(opt);
                 }
-                chatSelector.appendChild(option);
             });
+            
+            // Sett riktig valgt verdi
+            if (currentChatId) {
+                chatSelector.value = currentChatId;
+                loadChat(currentChatId);
+            } else {
+                chatSelector.value = "new";
+                currentChatId = null;
+                clearChatMessages();
+            }
         } else {
             console.error('Chat selector ikke funnet i DOM');
         }
-        
-        // Oppdater currentChatId hvis nødvendig
-        if (chats.length > 0 && !currentChatId) {
-            currentChatId = chats[0].title;
-        }
-        
     } catch (error) {
         console.error('Feil ved henting av chats:', error);
     }
