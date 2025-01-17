@@ -108,8 +108,6 @@ async function onSendMessage() {
     const message = chatInput.value.trim();
     
     try {
-        let response;
-        
         if (!currentChatId) {
             currentChatId = await createNewChat();
         }
@@ -118,24 +116,7 @@ async function onSendMessage() {
             throw new Error('Kunne ikke opprette ny chat');
         }
 
-        // Endre endepunkt fra /messages til /message
-        response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/message`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: message,
-                model: selectedModel
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Nettverksfeil: ${response.status}\n${JSON.stringify(errorData)}`);
-        }
-
-        const data = await response.json();
+        const data = await sendMessage(currentChatId, message);
         appendMessageToChat('assistant', data.response);
         chatInput.value = '';
 
@@ -1063,136 +1044,39 @@ async function handleNewChat() {
  */
 async function handleUrlScraping() {
     try {
-        const urlInput = document.getElementById('url-input');
-        let url = urlInput.value.trim();
-        
-        if (!url || url === 'Enter URL to scrape ...') {
-            appendMessageToChat('error', 'Vennligst skriv inn en URL');
-            return;
-        }
-
-        // Sjekk om input er gyldig
-        if (!isValidUrl(url)) {
-            appendMessageToChat('error', 'Ugyldig URL-format');
-            return;
-        }
-
-        // Hvis ingen aktiv chat, opprett ny
-        if (!currentChatId) {
-            try {
-                currentChatId = await createNewChat();
-                console.log("Opprettet ny chat med ID:", currentChatId);
-
-                if (!currentChatId) {
-                    throw new Error('Chat ID ikke satt etter opprettelse');
-                }
-
-                // Oppdater chat selector
-                await fetchChats();
-
-            } catch (error) {
-                console.error('Feil ved opprettelse av chat:', error);
-                appendMessageToChat('error', `Kunne ikke opprette ny chat: ${error.message}`);
-                return;
-            }
-        }
-
-        appendMessageToChat('assistant', 'Scraper URL og analyserer innhold...');
-
-        url = normalizeUrl(url);
-        console.log('Normalisert URL:', url);
+        const normalizedUrl = normalizeUrl(urlInput.value);
+        console.log('Normalisert URL:', normalizedUrl);
         console.log('Bruker chat ID:', currentChatId);
-
-        const scrapeFormData = new FormData();
-        scrapeFormData.append('url', url);
-        scrapeFormData.append('max_depth', 1);
-
+        
         const encodedChatId = encodeURIComponent(currentChatId);
-        const scrapeResponse = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/context/url`, {
+        const message = `Analyser innholdet på denne nettsiden: ${normalizedUrl}`;
+        
+        // Riktig endepunkt
+        const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // ENDRET fra /messages til /message
+        console.log('API URL:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
-            body: scrapeFormData
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                model: selectedModel
+            })
         });
 
-        if (!scrapeResponse.ok) {
-            const errorText = await scrapeResponse.text();
-            throw new Error(`Feil ved scraping (${scrapeResponse.status}): ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server respons:', errorText);
+            throw new Error(`Kunne ikke sende melding: ${response.status}\n${errorText}`);
         }
 
-        const scrapeResult = await scrapeResponse.json();
-        
-        if (!scrapeResult.filenames || scrapeResult.filenames.length === 0) {
-            throw new Error('Ingen fil returnert fra scraping');
-        }
-
-        console.log('Scrapet fil:', scrapeResult.filenames[0]);
-        
-        // Vent litt for å sikre at filen er lagret
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Oppdater file list og aktiv kontekst
-        const filesResponse = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/files`);
-        const filesData = await filesResponse.json();
-        updateFileList(filesData.files);
-
-        // Reset input og vis status
-        urlInput.value = '';
-        
-        // Fjern loading message
-        if (chatMessages.lastElementChild) {
-            chatMessages.lastElementChild.remove();
-        }
-        
-        appendMessageToChat('system', 'URL scrapet og lagret som kontekst');
-
-        // Vent litt til før vi sender meldingen
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Sett meldingen i input og send
-        if (chatInput && currentChatId) {
-            const message = "Lag en kort beskrivelse av nettstedets innhold over 3 til 4 avsnitt. Inkludere i denne kontaktopplysninger og eventuelt firmaopplysninger som finnes";
-            
-            appendMessageToChat('user', message);
-            appendMessageToChat('assistant', 'Analyserer innhold...');
-            
-            // Debug logging
-            console.log('Sender melding til chat:', currentChatId);
-            
-            // Riktig endepunkt for meldinger
-            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // NB: /message, ikke /messages
-            console.log('API URL:', apiUrl);
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: message,
-                    model: selectedModel
-                })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server respons:', errorText);
-                throw new Error(`Kunne ikke sende melding: ${response.status}\n${errorText}`);
-            }
-
-            const data = await response.json();
-            
-            // Fjern "Analyserer innhold..." meldingen
-            if (chatMessages.lastElementChild) {
-                chatMessages.lastElementChild.remove();
-            }
-            
-            appendMessageToChat('assistant', data.response);
-        }
+        const data = await response.json();
+        appendMessageToChat('assistant', data.response);
 
     } catch (error) {
         console.error('Feil ved scraping/analyse av URL:', error);
-        if (chatMessages.lastElementChild) {
-            chatMessages.lastElementChild.remove();
-        }
         appendMessageToChat('error', `Det oppstod en feil: ${error.message}`);
     }
 }
@@ -1329,3 +1213,29 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchChats();
     setupEventListeners();
 });
+
+// Legg til en hjelpefunksjon for å sende meldinger
+async function sendMessage(chatId, message) {
+    const encodedChatId = encodeURIComponent(chatId);
+    const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // ENDRET fra /messages til /message
+    
+    console.log('Sender melding til:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            model: selectedModel
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Kunne ikke sende melding: ${response.status}\n${errorText}`);
+    }
+
+    return await response.json();
+}
