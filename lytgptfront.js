@@ -167,7 +167,10 @@ async function createNewChat() {
         }
         console.log("Oppretter ny chat med modell:", selectedModel);
         
-        const response = await fetch(`${API_BASE_URL}/chat/new`, {
+        const url = `${API_BASE_URL}/chat/new`;
+        console.log("Sender request til:", url);
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -176,12 +179,18 @@ async function createNewChat() {
             })
         });
         
+        console.log("Server respons status:", response.status);
+        const responseData = await response.text();
+        console.log("Server respons data:", responseData);
+        
         if (!response.ok) {
-            throw new Error(`Server svarte med ${response.status}`);
+            throw new Error(`Server svarte med ${response.status}: ${responseData}`);
         }
         
-        const chat = await response.json();
+        const chat = JSON.parse(responseData);
         currentChatId = chat.title;
+        
+        console.log("Ny chat opprettet med ID:", currentChatId);
         
         // Oppdater chat list
         await fetchChats();
@@ -263,49 +272,67 @@ function populateModelSelector(models) {
 async function fetchChats() {
     try {
         console.log('Starter fetchChats');
-        const response = await fetch(`${API_BASE_URL}/chats`);
+        const url = `${API_BASE_URL}/chats`;
+        console.log('Henter chats fra:', url);
+        
+        const response = await fetch(url);
+        console.log('Server respons status:', response.status);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const chats = await response.json();
-        console.log('Mottatte chats fra backend:', chats);
+        const responseData = await response.text();
+        console.log('Rå respons fra server:', responseData);
         
-        if (!chatSelector) {
-            console.error('Chat selector ikke funnet!');
-            return;
-        }
-        
-        // Tøm eksisterende options
-        chatSelector.innerHTML = '';
-        
-        // Legg til default option
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'Velg chat...';
-        chatSelector.appendChild(defaultOption);
+        const chats = JSON.parse(responseData);
+        console.log('Parsed chats data:', chats);
         
         if (!Array.isArray(chats)) {
             console.error('Mottatte chats er ikke et array:', chats);
             return;
         }
         
-        // Legg til alle chats
-        chats.forEach(chat => {
-            console.log('Legger til chat:', chat);
-            const option = document.createElement('option');
-            option.value = chat;
-            option.textContent = chat;
-            if (currentChatId && chat === currentChatId) {
-                option.selected = true;
-            }
-            chatSelector.appendChild(option);
-        });
+        if (!chatSelector) {
+            console.error('Chat selector ikke funnet!');
+            return;
+        }
+        
+        // Oppdater chat selector
+        updateChatSelector(chats);
         
     } catch (error) {
         console.error('Feil ved henting av chats:', error);
     }
+}
+
+function updateChatSelector(chats) {
+    if (!chatSelector) return;
+    
+    console.log('Oppdaterer chat selector med:', chats);
+    
+    // Tøm eksisterende options
+    chatSelector.innerHTML = '';
+    
+    // Legg til default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Velg chat...';
+    chatSelector.appendChild(defaultOption);
+    
+    // Legg til alle chats
+    chats.forEach(chat => {
+        console.log('Legger til chat:', chat);
+        const option = document.createElement('option');
+        option.value = chat;
+        option.textContent = chat;
+        if (currentChatId && chat === currentChatId) {
+            option.selected = true;
+        }
+        chatSelector.appendChild(option);
+    });
+    
+    console.log('Chat selector oppdatert. Antall options:', chatSelector.options.length);
 }
 
 function populateChatSelector(chats) {
