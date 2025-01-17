@@ -305,23 +305,30 @@
             cleanupFileUploads();
             
             const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-            if (response.ok) {
-                const chat = await response.json();
-                currentChatId = chat.title;
-                // Oppdater modellvalg
-                selectedModel = chat.model;
-                if (modelSelector) {
-                    modelSelector.value = chat.model;
-                }
-                displayChatMessages(chat.messages);
-                console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-            } else {
-                console.error("Feil ved lasting av chat:", response.status, response.statusText);
-                alert("Feil ved lasting av chat.");
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
+            const chat = await response.json();
+            currentChatId = chat.title;
+            
+            // Oppdater modellvalg
+            selectedModel = chat.model;
+            if (modelSelector) {
+                modelSelector.value = chat.model;
+            }
+            
+            // Vis chat meldinger
+            displayChatMessages(chat.messages);
+            console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
+            
         } catch (error) {
             console.error("Feil ved lasting av chat:", error);
-            alert("Feil ved lasting av chat.");
+            const failElement = document.querySelector('.w-form-fail');
+            if (failElement) {
+                failElement.style.display = 'block';
+                failElement.querySelector('div').textContent = "Feil ved lasting av chat.";
+            }
         }
     }
 
@@ -369,25 +376,41 @@
             populateChatSelector(chats);
         } catch (error) {
             console.error("Feil ved henting av chats:", error);
+            // Vis feilmelding i w-form-fail elementet
+            const failElement = document.querySelector('.w-form-fail');
+            if (failElement) {
+                failElement.style.display = 'block';
+            }
         }
     }
 
     function populateChatSelector(chats) {
-        if (!chatSelector) return;
+        if (!chatSelector) {
+            console.error("Chat selector ikke funnet");
+            return;
+        }
+        
+        // Tøm eksisterende valg
         chatSelector.innerHTML = '';
+        
+        // Legg til standardvalg
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Velg chat...';
+        chatSelector.appendChild(defaultOption);
+        
+        // Legg til hver chat som et valg
         chats.forEach(chat => {
             const opt = document.createElement('option');
-            opt.value = (chat === "Ny chat") ? "new" : chat;
-            opt.text  = chat;
+            opt.value = chat;
+            opt.textContent = chat;
             chatSelector.appendChild(opt);
         });
+        
+        // Hvis vi har en aktiv chat, velg den
         if (currentChatId) {
             chatSelector.value = currentChatId;
             loadChat(currentChatId);
-        } else {
-            chatSelector.value = "new";
-            currentChatId      = null;
-            clearChatMessages();
         }
     }
 
