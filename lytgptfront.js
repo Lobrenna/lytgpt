@@ -176,33 +176,20 @@ async function createNewChat() {
             })
         });
         
-        if (response.ok) {
-            const chat = await response.json();
-            currentChatId = chat.title;
-            
-            // Oppdater model selector
-            if (modelSelector) {
-                modelSelector.value = selectedModel;
-            }
-            
-            // Oppdater chat list
-            await fetchChats();
-            
-            // Last inn den nye chatten
-            await loadChat(currentChatId);
-            
-            appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
-            console.log("Ny chat opprettet med ID:", currentChatId);
-            
-            // Sett valgt chat i selector
-            if (chatSelector) {
-                chatSelector.value = currentChatId;
-            }
-            
-            return currentChatId;
-        } else {
+        if (!response.ok) {
             throw new Error(`Server svarte med ${response.status}`);
         }
+        
+        const chat = await response.json();
+        currentChatId = chat.title;
+        
+        // Oppdater chat list
+        await fetchChats();
+        
+        // Last inn den nye chatten
+        await loadChat(currentChatId);
+        
+        return currentChatId;
     } catch (error) {
         console.error("Feil ved opprettelse av chat:", error);
         throw error;
@@ -214,27 +201,28 @@ async function createNewChat() {
  */
 async function loadChat(chatId) {
     try {
-        // Rydd opp i file uploads først
-        cleanupFileUploads();
+        const response = await fetch(`${API_BASE_URL}/chat/${chatId}`);
         
-        const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-        if (response.ok) {
-            const chat = await response.json();
-            currentChatId = chat.title;
-            // Oppdater modellvalg
-            selectedModel = chat.model;
-            if (modelSelector) {
-                modelSelector.value = chat.model;
-            }
-            displayChatMessages(chat.messages);
-            console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-        } else {
-            console.error("Feil ved lasting av chat:", response.status, response.statusText);
-            alert("Feil ved lasting av chat.");
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const chatData = await response.json();
+        currentChatId = chatId;
+        selectedModel = chatData.model;
+        
+        // Oppdater UI
+        if (modelSelector) {
+            modelSelector.value = selectedModel;
+        }
+        
+        console.log(`Lastet chat med ID: ${chatId} Modell: ${selectedModel}`);
+        
+        // Oppdater meldinger
+        displayMessages(chatData.messages);
+        
     } catch (error) {
-        console.error("Feil ved lasting av chat:", error);
-        alert("Feil ved lasting av chat.");
+        console.error('Feil ved lasting av chat:', error);
     }
 }
 
@@ -282,7 +270,7 @@ async function fetchChats() {
         }
         
         const chats = await response.json();
-        console.log('Rå respons fra /chats:', chats); // Debug
+        console.log('Mottatte chats fra backend:', chats);
         
         if (!chatSelector) {
             console.error('Chat selector ikke funnet!');
@@ -298,15 +286,14 @@ async function fetchChats() {
         defaultOption.textContent = 'Velg chat...';
         chatSelector.appendChild(defaultOption);
         
-        // Sjekk om chats er et array og inneholder data
         if (!Array.isArray(chats)) {
             console.error('Mottatte chats er ikke et array:', chats);
             return;
         }
         
         // Legg til alle chats
-        chats.forEach((chat, index) => {
-            console.log(`Legger til chat ${index}:`, chat);
+        chats.forEach(chat => {
+            console.log('Legger til chat:', chat);
             const option = document.createElement('option');
             option.value = chat;
             option.textContent = chat;
@@ -315,11 +302,6 @@ async function fetchChats() {
             }
             chatSelector.appendChild(option);
         });
-        
-        console.log('Ferdig med å populere chat selector');
-        console.log('Chat selector innhold:', chatSelector.innerHTML);
-        console.log('Antall options:', chatSelector.options.length);
-        console.log('Current chat ID:', currentChatId);
         
     } catch (error) {
         console.error('Feil ved henting av chats:', error);
@@ -1215,27 +1197,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Legg til en hjelpefunksjon for å sende meldinger
-async function sendMessage(chatId, message) {
-    const encodedChatId = encodeURIComponent(chatId);
-    const apiUrl = `${API_BASE_URL}/chat/${encodedChatId}/message`;  // ENDRET fra /chats til /chat
-    
-    console.log('Sender melding til:', apiUrl);
-    
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            message: message,
-            model: selectedModel
-        })
-    });
+async function sendMessage(message) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/chat/${currentChatId}/message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                model: selectedModel
+            })
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Kunne ikke sende melding: ${response.status}\n${errorText}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Feil ved sending av melding:', error);
+        throw error;
     }
-
-    return await response.json();
 }
