@@ -108,120 +108,23 @@
         if (!chatInput || !chatInput.value.trim()) return;
 
         const message = chatInput.value.trim();
-        const fileInputs = document.querySelectorAll('.w-file-upload-input');
         
-        console.log("Alle file inputs funnet:", fileInputs.length);
-        
-        // Samle alle filer som er valgt
-        let hasFiles = false;
-        const formData = new FormData();
-        formData.append('message', message);
-        
-        // Samle alle filer fra inputs som har en fil valgt
-        let fileCount = 0;
-        fileInputs.forEach((input) => {
-            const uploadDiv = input.closest('.w-file-upload');
-            const successView = uploadDiv?.querySelector('.w-file-upload-success');
-            
-            // Sjekk om filen er valgt (success view er synlig)
-            if (input.files && 
-                input.files[0] && 
-                successView && 
-                !successView.classList.contains('w-hidden')) {
-                
-                fileCount++;
-                console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
-                formData.append('files', input.files[0]);
-                hasFiles = true;
-            }
-        });
-        
-        // Vis brukerens melding
-        appendMessageToChat('user', message);
-        appendMessageToChat('assistant', 'Genererer svar...');
-
         try {
-            let response;
-            
-            // Sjekk om vi har filer og skal bruke long-context
-            if (hasFiles) {
-                console.log("Sender request med filer til long-context endpoint");
-                
-                if (selectedModel) {
-                    console.log("Legger til modell:", selectedModel);
-                    formData.append('preferred_model', selectedModel);
-                }
+            // Legg til brukerens melding i chatten
+            appendMessageToChat('user', renderMarkdown(message));
+            appendMessageToChat('system', 'Genererer svar...');
 
-                // Debug: Vis innholdet i FormData
-                for (let pair of formData.entries()) {
-                    console.log('FormData innhold:', pair[0], pair[1]);
-                }
+            // Bruk den nye sendMessage-hjelpefunksjonen
+            const response = await sendMessage(currentChatId, message);
 
-                response = await fetch(`${API_BASE_URL}/chat/long-context`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                console.log("Response status:", response.status);
+            // Fjern "Genererer svar..." meldingen
+            chatMessages.removeChild(chatMessages.lastChild);
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("Response error data:", errorData);
-                    throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-                }
+            // Vis svaret
+            appendMessageToChat('assistant', renderMarkdown(response.response));
 
-                const data = await response.json();
-                console.log("Response data:", data);
-                
-                // Fjern "Genererer svar..." meldingen
-                chatMessages.removeChild(chatMessages.lastChild);
-                
-                // Vis modellinfo og svar
-                const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-                appendMessageToChat('system', modelInfo);
-                appendMessageToChat('assistant', data.response);
-                
-                // Tøm chat input
-                chatInput.value = '';
-                
-                // IKKE fjern file uploads her - la brukeren fjerne dem manuelt
-                
-            } else {
-                // Vanlig chat uten filer
-                if (!currentChatId) {
-                    await createNewChat();
-                }
-                
-                if (!currentChatId) {
-                    throw new Error('Kunne ikke opprette ny chat');
-                }
-
-                console.log("Sender melding til chat:", currentChatId);
-                const encodedChatId = encodeURIComponent(currentChatId);
-                console.log("API URL:", `${API_BASE_URL}/chats/${encodedChatId}/messages`);
-                
-                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        preferred_model: selectedModel
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("Response error data:", errorData);
-                    throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-                }
-
-                const data = await response.json();
-                chatMessages.removeChild(chatMessages.lastChild);
-                appendMessageToChat('assistant', data.response);
-                chatInput.value = '';
-            }
+            // Tøm chat input
+            chatInput.value = '';
 
         } catch (error) {
             console.error('Feil ved sending av melding:', error);
