@@ -202,6 +202,15 @@ function clearChatMessages() {
 }
 
 /**
+ * createNewChatId - Genererer en ny URL-vennlig chat ID
+ * @returns {string} Den genererte chat ID-en
+ */
+function createNewChatId() {
+  const now = new Date();
+  return `Chat_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+}
+
+/**
  * createNewChat - Opprett en ny chat i backend
  */
 async function createNewChat() {
@@ -210,24 +219,21 @@ async function createNewChat() {
       selectedModel = modelSelector.options[0].value;
     }
     
-    // Generer en URL-vennlig chat ID uten mellomrom
-    const now = new Date();
-    const chatId = `Chat_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const chatId = createNewChatId();
     
     console.log("Oppretter ny chat med modell:", selectedModel);
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Fjernet "Ny chat" fra tittelen
       body: JSON.stringify({ 
-        title: chatId,  // Bruker den URL-vennlige ID-en direkte som tittel
+        title: chatId,
         model: selectedModel 
       })
     });
     
     if (response.ok) {
       const chat = await response.json();
-      currentChatId = chatId;  // Bruker vår genererte ID direkte
+      currentChatId = chatId;
       console.log("Ny chat opprettet med ID:", currentChatId);
       if (modelSelector) {
         modelSelector.value = selectedModel;
@@ -248,160 +254,43 @@ async function createNewChat() {
 }
 
 /**
- * loadChat - Laster en eksisterende chat
+ * onNewChat - Håndterer klikk på new-chat-button
  */
-async function loadChat(chatId) {
+async function onNewChat() {
   try {
-    // Rydd opp i file uploads først
-    cleanupFileUploads();
-
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const chat = await response.json();
-    currentChatId = chat.title;
-
-    // Oppdater modellvalg
-    selectedModel = chat.model;
-    if (modelSelector) {
-      modelSelector.value = chat.model;
-    }
-
-    // Vis chat meldinger
-    displayChatMessages(chat.messages);
-    console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-  } catch (error) {
-    console.error("Feil ved lasting av chat:", error);
-    const failElement = document.querySelector('.w-form-fail');
-    if (failElement) {
-      failElement.style.display = 'block';
-      failElement.querySelector('div').textContent = "Feil ved lasting av chat.";
-    }
-  }
-}
-
-/**
- * fetchModels - Hent tilgjengelige modeller
- */
-async function fetchModels() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/models`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const models = await response.json();
-    populateModelSelector(models);
-  } catch (error) {
-    console.error("Feil ved henting av modeller:", error);
-  }
-}
-
-function populateModelSelector(models) {
-  if (!modelSelector) return;
-  modelSelector.innerHTML = '';
-  models.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.text = m;
-    modelSelector.appendChild(opt);
-  });
-  if (models.length > 0 && !selectedModel) {
-    selectedModel = models[0];
-    modelSelector.value = selectedModel;
-  }
-}
-
-/**
- * fetchChats - Hent tilgjengelige chats
- */
-async function fetchChats() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const chats = await response.json();
-    console.log("Mottatte chats:", chats);
-    populateChatSelector(chats);
-  } catch (error) {
-    console.error("Feil ved henting av chats:", error);
-  }
-}
-
-/**
- * populateChatSelector - Fyller chat-selector med tilgjengelige chats
- */
-function populateChatSelector(chats) {
-  if (!chatSelector) {
-    console.error("Chat selector ikke funnet");
-    return;
-  }
-
-  console.log("Populerer chat selector med:", chats);
-
-  // Tøm eksisterende valg
-  chatSelector.innerHTML = '';
-
-  // Legg til standardvalg
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = 'Velg chat...';
-  chatSelector.appendChild(defaultOption);
-
-  // Legg til hver chat som et valg
-  chats.forEach(chat => {
-    const opt = document.createElement('option');
-    // Bruk hele filnavnet uten .json-extension som chat ID
-    const chatId = chat.replace('.json', '');
-    opt.value = chatId;
-    opt.textContent = chatId;
-    chatSelector.appendChild(opt);
-  });
-
-  // Hvis vi har en aktiv chat, velg den
-  if (currentChatId) {
-    chatSelector.value = currentChatId;
-  }
-}
-
-/**
- * onModelChange - Håndterer endring av modell
- */
-async function onModelChange(event) {
-  const newModel = event.target.value;
-  console.log("Forsøker å endre modell til:", newModel);
-
-  if (!currentChatId) {
-    selectedModel = newModel;
-    console.log("Ingen aktiv chat, bare oppdaterer lokal modell til:", selectedModel);
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/model`, {
-      method: 'PUT',
+    const chatId = createNewChatId();
+    
+    const response = await fetch(`${API_BASE_URL}/chats`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: newModel
+        title: chatId,
+        model: selectedModel || "gpt-4o"
       })
     });
 
-    if (response.ok) {
-      selectedModel = newModel;
-      console.log("Modell endret til:", selectedModel);
-    } else {
-      console.error("Feil ved endring av modell:", response.status);
-      event.target.value = selectedModel; // Tilbakestill til forrige modell
-      alert("Feil ved endring av modell.");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const chatData = await response.json();
+    currentChatId = chatId;
+
+    await fetchChats();
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+    }
+
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
+    }
+
+    console.log("Ny chat opprettet med ID:", currentChatId);
   } catch (error) {
-    console.error("Feil ved endring av modell:", error);
-    event.target.value = selectedModel; // Tilbakestill til forrige modell
-    alert("Feil ved endring av modell.");
+    console.error("Feil ved opprettelse av ny chat:", error);
+    alert("Feil ved opprettelse av ny chat.");
   }
 }
 
@@ -420,8 +309,8 @@ async function onChatChange(e) {
 async function onUploadFiles() {
   console.log("Upload-knapp klikket");
   if (!currentChatId) {
-    alert("Vennligst velg eller opprett en chat først.");
-    return;
+    const chatId = createNewChatId();
+    await createNewChat();
   }
 
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
@@ -473,8 +362,8 @@ async function onUploadFiles() {
  */
 async function onSetUrl() {
   if (!currentChatId) {
-    alert("Vennligst velg eller opprett en chat først.");
-    return;
+    const chatId = createNewChatId();
+    await createNewChat();
   }
 
   const url = urlInput.value.trim();
@@ -504,47 +393,6 @@ async function onSetUrl() {
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
     alert("Feil ved innstilling av URL.");
-  }
-}
-
-/**
- * onNewChat
- */
-async function onNewChat() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: "Ny chat",
-        model: selectedModel || "gpt-4o" // Bruk valgt modell eller default
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const chatData = await response.json();
-    currentChatId = chatData.title;
-
-    // Oppdater chat selector
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-    }
-
-    // Tøm meldinger
-    if (chatMessages) {
-      chatMessages.innerHTML = '';
-    }
-
-    console.log("Ny chat opprettet med ID:", currentChatId);
-  } catch (error) {
-    console.error("Feil ved opprettelse av ny chat:", error);
-    alert("Feil ved opprettelse av ny chat.");
   }
 }
 
