@@ -363,6 +363,9 @@ async function fetchChats() {
         const response = await fetch(`${API_BASE_URL}/chats`);
         const chats = await response.json();
         
+        console.log('Mottatte chats fra backend:', chats); // Debug
+        console.log('Chat selector element:', chatSelector); // Debug
+        
         if (chatSelector) {
             chatSelector.innerHTML = '';
             chats.forEach(chat => {
@@ -1191,10 +1194,8 @@ async function handleUrlScraping() {
             // Debug logging
             console.log('Sender melding til chat:', currentChatId);
             
-            // Bruk korrekt endepunkt som definert i backend
-            const encodedChatId = encodeURIComponent(currentChatId);
-            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // Endret fra /messages til /message
-            
+            // Bruk samme endepunkt som i onSendMessage
+            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;
             console.log('API URL:', apiUrl);
             
             const response = await fetch(apiUrl, {
@@ -1204,7 +1205,7 @@ async function handleUrlScraping() {
                 },
                 body: JSON.stringify({
                     message: message,
-                    model: selectedModel  // Legg til modell i request
+                    model: selectedModel
                 })
             });
 
