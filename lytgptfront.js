@@ -198,9 +198,9 @@
 
                 console.log("Sender melding til chat:", currentChatId);
                 const encodedChatId = encodeURIComponent(currentChatId);
-                console.log("API URL:", `${API_BASE_URL}/chats/${encodedChatId}/messages`);  // Legg til logging
+                console.log("API URL:", `${API_BASE_URL}/chats/${encodedChatId}/messages`);
                 
-                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {  // Endret fra /message til /messages
+                response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1040,4 +1040,25 @@
             chatInput.style.color = "#000";
         }
     });
+
+    // Legg til en hjelpefunksjon for å sende meldinger
+    async function sendMessage(chatId, message, model = null) {
+        const encodedChatId = encodeURIComponent(chatId);
+        const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                preferred_model: model || selectedModel
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
 </script>
