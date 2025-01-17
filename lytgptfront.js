@@ -266,6 +266,7 @@ async function createNewChat() {
             selectedModel = modelSelector.options[0].value;
         }
         console.log("Oppretter ny chat med modell:", selectedModel);
+        
         const response = await fetch(`${API_BASE_URL}/chats`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -277,14 +278,27 @@ async function createNewChat() {
         
         if (response.ok) {
             const chat = await response.json();
-            currentChatId = chat.title;  // Bruk chat.title som ID
+            currentChatId = chat.title;
+            
+            // Oppdater model selector
             if (modelSelector) {
                 modelSelector.value = selectedModel;
             }
+            
+            // Oppdater chat list
             await fetchChats();
+            
+            // Last inn den nye chatten
             await loadChat(currentChatId);
-            appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+            
+            appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
             console.log("Ny chat opprettet med ID:", currentChatId);
+            
+            // Sett valgt chat i selector
+            if (chatSelector) {
+                chatSelector.value = currentChatId;
+            }
+            
             return currentChatId;
         } else {
             throw new Error(`Server svarte med ${response.status}`);
@@ -365,25 +379,35 @@ async function fetchChats() {
         
         console.log('Mottatte chats fra backend:', chats); // Debug
         console.log('Chat selector element:', chatSelector); // Debug
+        console.log('Current chat ID:', currentChatId); // Debug
         
         if (chatSelector) {
+            // Tøm eksisterende options
             chatSelector.innerHTML = '';
+            
+            // Legg til en default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Velg chat...';
+            chatSelector.appendChild(defaultOption);
+            
+            // Legg til alle chats
             chats.forEach(chat => {
                 const option = document.createElement('option');
-                option.value = chat.title;  // Endret fra chat.id til chat.title
+                option.value = chat.title;  // Bruker chat.title som verdi
                 option.textContent = chat.title;
+                if (currentChatId && chat.title === currentChatId) {
+                    option.selected = true;
+                }
                 chatSelector.appendChild(option);
             });
-            
-            // Sett valgt chat
-            if (currentChatId) {
-                chatSelector.value = currentChatId;
-            }
+        } else {
+            console.error('Chat selector ikke funnet i DOM');
         }
         
         // Oppdater currentChatId hvis nødvendig
         if (chats.length > 0 && !currentChatId) {
-            currentChatId = chats[0].title;  // Endret fra chats[0].id til chats[0].title
+            currentChatId = chats[0].title;
         }
         
     } catch (error) {
@@ -646,12 +670,21 @@ function onCancelDelete() {
  * setupEventListeners
  */
 function setupEventListeners() {
+    console.log('Setting up event listeners');
+    console.log('Chat selector:', chatSelector);
+    
     if (modelSelector) {
         modelSelector.addEventListener('change', onModelChange);
     }
+    
+    // Sjekk og sett opp chat selector
     if (chatSelector) {
+        console.log('Setter opp chat selector event listener');
         chatSelector.addEventListener('change', onChatChange);
+    } else {
+        console.error('Chat selector ikke funnet ved setup av event listeners');
     }
+    
     if (sendButton) {
         sendButton.addEventListener('click', onSendMessage);
         sendButton.setAttribute('type', 'button');
