@@ -109,14 +109,14 @@ function appendMessageToChat(role, htmlContent) {
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
  */
 async function sendMessage(chatId, message) {
-  console.log("Sending message to chat with ID:", chatId);
-  const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
-  console.log("Full URL:", url);
-  console.log("Current chat state:", {
-    currentChatId,
-    selectedModel,
-    message
-  });
+  console.log("Debug - Chat ID før sending:", chatId);
+  console.log("Debug - Current chat ID:", currentChatId);
+  
+  // Bruk currentChatId hvis chatId ikke er gyldig
+  const actualChatId = chatId || currentChatId;
+  
+  const url = `${API_BASE_URL}/chats/${encodeURIComponent(actualChatId)}/messages`; // Merk: messages i flertall
+  console.log("Debug - Full URL for sending:", url);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -131,7 +131,7 @@ async function sendMessage(chatId, message) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    console.error("Response error data:", errorData);
+    console.error("Debug - Response error data:", errorData);
     throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
   }
 
@@ -145,13 +145,20 @@ async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
+  console.log("Debug - Sending message with current chat ID:", currentChatId);
 
   try {
+    // Sjekk om vi har en gyldig chat
+    if (!currentChatId) {
+      console.log("Debug - Ingen aktiv chat, oppretter ny");
+      await createNewChat();
+    }
+
     // Legg til brukerens melding i chatten
     appendMessageToChat('user', renderMarkdown(message));
     appendMessageToChat('system', 'Genererer svar...');
 
-    // Bruk den nye sendMessage-hjelpefunksjonen
+    // Send meldingen med den aktive chat ID-en
     const response = await sendMessage(currentChatId, message);
 
     // Fjern "Genererer svar..." meldingen
@@ -163,8 +170,8 @@ async function onSendMessage() {
     // Tøm chat input
     chatInput.value = '';
   } catch (error) {
-    console.error('Feil ved sending av melding:', error);
-    console.error('Full error object:', error);
+    console.error('Debug - Feil ved sending av melding:', error);
+    console.error('Debug - Full error object:', error);
     chatMessages.removeChild(chatMessages.lastChild);
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
   }
