@@ -167,7 +167,7 @@ async function createNewChat() {
         }
         console.log("Oppretter ny chat med modell:", selectedModel);
         
-        const response = await fetch(`${API_BASE_URL}/chats`, {
+        const response = await fetch(`${API_BASE_URL}/chat/new`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -1052,7 +1052,7 @@ async function handleUrlScraping() {
         const message = `Analyser innholdet på denne nettsiden: ${normalizedUrl}`;
         
         // Riktig endepunkt
-        const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // ENDRET fra /messages til /message
+        const apiUrl = `${API_BASE_URL}/chat/${encodedChatId}/message`;  // ENDRET fra /chats til /chat
         console.log('API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
@@ -1217,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Legg til en hjelpefunksjon for å sende meldinger
 async function sendMessage(chatId, message) {
     const encodedChatId = encodeURIComponent(chatId);
-    const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // ENDRET fra /messages til /message
+    const apiUrl = `${API_BASE_URL}/chat/${encodedChatId}/message`;  // ENDRET fra /chats til /chat
     
     console.log('Sender melding til:', apiUrl);
     
