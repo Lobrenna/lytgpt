@@ -207,16 +207,15 @@
             if (response.ok) {
                 const chat = await response.json();
                 currentChatId = chat.title;
+                console.log("Ny chat opprettet med ID:", currentChatId);
                 if (modelSelector) {
                     modelSelector.value = selectedModel;
                 }
                 await fetchChats();
                 if (chatSelector) {
                     chatSelector.value = currentChatId;
-                    await loadChat(currentChatId);
                 }
                 appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-                console.log("Ny chat opprettet med ID:", currentChatId);
             } else {
                 console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
                 alert("Feil ved opprettelse av ny chat.");
@@ -304,22 +303,23 @@
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const chats = await response.json();
+            console.log("Mottatte chats:", chats);
             populateChatSelector(chats);
         } catch (error) {
             console.error("Feil ved henting av chats:", error);
-            // Vis feilmelding i w-form-fail elementet
-            const failElement = document.querySelector('.w-form-fail');
-            if (failElement) {
-                failElement.style.display = 'block';
-            }
         }
     }
 
+    /**
+     * populateChatSelector - Fyller chat-selector med tilgjengelige chats
+     */
     function populateChatSelector(chats) {
         if (!chatSelector) {
             console.error("Chat selector ikke funnet");
             return;
         }
+        
+        console.log("Populerer chat selector med:", chats);
         
         // Tøm eksisterende valg
         chatSelector.innerHTML = '';
@@ -333,15 +333,16 @@
         // Legg til hver chat som et valg
         chats.forEach(chat => {
             const opt = document.createElement('option');
-            opt.value = chat;
-            opt.textContent = chat;
+            // Bruk hele filnavnet uten .json-extension som chat ID
+            const chatId = chat.replace('.json', '');
+            opt.value = chatId;
+            opt.textContent = chatId;
             chatSelector.appendChild(opt);
         });
         
         // Hvis vi har en aktiv chat, velg den
         if (currentChatId) {
             chatSelector.value = currentChatId;
-            loadChat(currentChatId);
         }
     }
 
