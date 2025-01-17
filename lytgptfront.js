@@ -301,7 +301,7 @@ async function fetchChats() {
         }
         
         const chats = await response.json();
-        console.log('Mottatte chats fra backend:', chats);
+        console.log('Rå respons fra /chats:', chats); // Debug
         
         if (!chatSelector) {
             console.error('Chat selector ikke funnet!');
@@ -317,6 +317,7 @@ async function fetchChats() {
         defaultOption.textContent = 'Velg chat...';
         chatSelector.appendChild(defaultOption);
         
+        // Sjekk om chats er et array og inneholder data
         if (!Array.isArray(chats)) {
             console.error('Mottatte chats er ikke et array:', chats);
             return;
@@ -335,6 +336,7 @@ async function fetchChats() {
         });
         
         console.log('Ferdig med å populere chat selector');
+        console.log('Chat selector innhold:', chatSelector.innerHTML);
         console.log('Antall options:', chatSelector.options.length);
         console.log('Current chat ID:', currentChatId);
         
@@ -1155,8 +1157,8 @@ async function handleUrlScraping() {
             // Debug logging
             console.log('Sender melding til chat:', currentChatId);
             
-            // Endre endepunkt fra /messages til /message
-            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;
+            // Riktig endepunkt for meldinger
+            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // NB: /message, ikke /messages
             console.log('API URL:', apiUrl);
             
             const response = await fetch(apiUrl, {
@@ -1295,6 +1297,34 @@ function checkSetup() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
     checkSetup();
+    fetchModels();
+    fetchChats();
+    setupEventListeners();
+});
+
+// Legg til en funksjon for å teste API-endepunktene
+async function testEndpoints() {
+    try {
+        console.log('Tester /chats endepunkt...');
+        const response = await fetch(`${API_BASE_URL}/chats`);
+        const data = await response.json();
+        console.log('Respons fra /chats:', data);
+        
+        if (currentChatId) {
+            console.log('Tester /chats/{chat_id} endepunkt...');
+            const chatResponse = await fetch(`${API_BASE_URL}/chats/${currentChatId}`);
+            const chatData = await chatResponse.json();
+            console.log('Respons fra /chats/{chat_id}:', chatData);
+        }
+    } catch (error) {
+        console.error('Feil ved testing av endepunkter:', error);
+    }
+}
+
+// Kall testEndpoints når siden lastes
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM lastet');
+    testEndpoints();
     fetchModels();
     fetchChats();
     setupEventListeners();
