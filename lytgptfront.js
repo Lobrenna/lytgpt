@@ -367,7 +367,7 @@ async function fetchChats() {
             chatSelector.innerHTML = '';
             chats.forEach(chat => {
                 const option = document.createElement('option');
-                option.value = chat.id;  // Bruk chat.id direkte
+                option.value = chat.title;  // Endret fra chat.id til chat.title
                 option.textContent = chat.title;
                 chatSelector.appendChild(option);
             });
@@ -380,7 +380,7 @@ async function fetchChats() {
         
         // Oppdater currentChatId hvis nødvendig
         if (chats.length > 0 && !currentChatId) {
-            currentChatId = chats[0].id;  // Bruk chat.id direkte
+            currentChatId = chats[0].title;  // Endret fra chats[0].id til chats[0].title
         }
         
     } catch (error) {
@@ -1193,7 +1193,7 @@ async function handleUrlScraping() {
             
             // Bruk korrekt endepunkt som definert i backend
             const encodedChatId = encodeURIComponent(currentChatId);
-            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/messages`;  // Endret tilbake til /messages
+            const apiUrl = `${API_BASE_URL}/chats/${encodedChatId}/message`;  // Endret fra /messages til /message
             
             console.log('API URL:', apiUrl);
             
@@ -1203,7 +1203,8 @@ async function handleUrlScraping() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    message: message
+                    message: message,
+                    model: selectedModel  // Legg til modell i request
                 })
             });
 
