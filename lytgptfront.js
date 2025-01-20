@@ -594,131 +594,122 @@ function setupEventListeners() {
  * handleFileSelection - Håndterer når en fil velges
  */
 function handleFileSelection(event) {
-  // Legg til stack trace for debugging
-  console.log("File selection triggered");
-  console.log("Event target:", event.target);
-  console.log("Stack trace:", new Error().stack);
-  
-  // Sjekk om denne handleren allerede har blitt kjørt for dette eventet
-  if (event.handled) {
-    console.log("Event already handled, skipping");
-    return;
-  }
-  event.handled = true;
-
-  const fileUploadDiv = event.target.closest('.w-file-upload');
-  if (!fileUploadDiv) {
-    console.log("Fant ikke fileUploadDiv");
-    return;
-  }
-
-  const formBlock = document.querySelector('.form-block-2');
-  if (!formBlock) {
-    console.log("Fant ikke form-block-2");
-    return;
-  }
-
-  const allFileUploads = document.querySelectorAll('.w-file-upload');
-  console.log("Antall file uploads:", allFileUploads.length);
-
-  if (allFileUploads.length >= 5) {
-    console.log("Maks antall file uploads nådd");
-    return;
-  }
-
-  // Lag nytt upload element med en gang en fil er valgt
-  if (event.target.files && event.target.files[0]) {
-    console.log("Fil valgt:", event.target.files[0].name);
-
-    // Oppdater UI for den valgte filen
-    const file = event.target.files[0];
-    const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
-    const successView = fileUploadDiv.querySelector('.w-file-upload-success');
-    const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
-
-    if (defaultView && successView && fileNameDiv) {
-      defaultView.classList.add('w-hidden');
-      successView.classList.remove('w-hidden');
-      fileNameDiv.textContent = file.name;
-      console.log("UI oppdatert for fil:", file.name);
+    // Legg til stack trace for debugging
+    console.log("File selection triggered");
+    console.log("Event target:", event.target);
+    
+    const fileUploadDiv = event.target.closest('.w-file-upload');
+    if (!fileUploadDiv) {
+        console.log("Fant ikke fileUploadDiv");
+        return;
     }
 
-    // Lag et nytt upload element umiddelbart
-    console.log("Lager nytt upload element");
-    const newUploadDiv = document.createElement('div');
-    newUploadDiv.className = 'w-file-upload';
-    newUploadDiv.innerHTML = `
-      <div class="w-file-upload-default">
-        <input class="w-file-upload-input" 
-               accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
-               name="file"
-               data-name="File"
-               type="file"
-               id="file-${allFileUploads.length + 1}"
-               style="height: 43.4766px; width: 1px;">
-        <label for="file-${allFileUploads.length + 1}"
-               role="button"
-               class="button-3 w-file-upload-label">
-          <div class="w-icon-file-upload-icon"></div>
-          <div class="text w-inline-block">Upload File</div>
-        </label>
-        <div class="w-file-upload-info">Max file size 10MB.</div>
-      </div>
-      <div class="w-file-upload-uploading w-hidden">
-        <div class="w-file-upload-uploading-btn">
-          <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
-            <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
-            <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
-              <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
-            </path>
-          </svg>
-          <div class="w-inline-block">Uploading...</div>
-        </div>
-      </div>
-      <div class="w-file-upload-success w-hidden">
-        <div class="w-file-upload-file">
-          <div class="w-file-upload-file-name"></div>
-          <div role="button" class="w-file-remove-link">
-            <div class="w-icon-file-upload-remove"></div>
-          </div>
-        </div>
-      </div>
-      <div class="w-file-upload-error w-hidden">
-        <div class="w-file-upload-error-msg"
-             data-w-size-error="Upload failed. Max size for files is 10 MB."
-             data-w-type-error="Upload failed. Invalid file type."
-             data-w-generic-error="Upload failed. Something went wrong. Please retry.">
-          Upload failed. Max size for files is 10 MB.
-        </div>
-      </div>`;
-
-    // Legg til event listener på det nye input elementet
-    const newInput = newUploadDiv.querySelector('.w-file-upload-input');
-    if (newInput) {
-      console.log("Adding event listener to new input:", newInput.id);
-      // Bruk once: true for å sikre at listener kun kjører én gang
-      newInput.addEventListener('change', handleFileSelection, { once: true });
+    const formBlock = document.querySelector('.form-block-2');
+    if (!formBlock) {
+        console.log("Fant ikke form-block-2");
+        return;
     }
 
-    // Legg til event listener for remove-knappen
-    const removeButton = newUploadDiv.querySelector('.w-file-remove-link');
-    if (removeButton) {
-      removeButton.addEventListener('click', function () {
-        console.log("Remove knapp klikket");
-        const defaultView = newUploadDiv.querySelector('.w-file-upload-default');
-        const successView = newUploadDiv.querySelector('.w-file-upload-success');
-        if (defaultView && successView) {
-          defaultView.classList.remove('w-hidden');
-          successView.classList.add('w-hidden');
+    const allFileUploads = document.querySelectorAll('.w-file-upload');
+    console.log("Antall file uploads:", allFileUploads.length);
+
+    if (allFileUploads.length >= 5) {
+        console.log("Maks antall file uploads nådd");
+        return;
+    }
+
+    // Lag nytt upload element med en gang en fil er valgt
+    if (event.target.files && event.target.files[0]) {
+        console.log("Fil valgt:", event.target.files[0].name);
+
+        // Oppdater UI for den valgte filen
+        const file = event.target.files[0];
+        const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
+        const successView = fileUploadDiv.querySelector('.w-file-upload-success');
+        const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
+
+        if (defaultView && successView && fileNameDiv) {
+            defaultView.classList.add('w-hidden');
+            successView.classList.remove('w-hidden');
+            fileNameDiv.textContent = file.name;
+            console.log("UI oppdatert for fil:", file.name);
         }
-        newInput.value = '';
-      });
-    }
 
-    // Sett inn det nye elementet etter det nåværende elementet
-    console.log("Setter inn nytt element etter gjeldende element");
-    fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
-  }
+        // Lag et nytt upload element umiddelbart
+        console.log("Lager nytt upload element");
+        const newUploadDiv = document.createElement('div');
+        newUploadDiv.className = 'w-file-upload';
+        newUploadDiv.innerHTML = `
+          <div class="w-file-upload-default">
+            <input class="w-file-upload-input" 
+                   accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
+                   name="file"
+                   data-name="File"
+                   type="file"
+                   id="file-${allFileUploads.length + 1}"
+                   style="height: 43.4766px; width: 1px;">
+            <label for="file-${allFileUploads.length + 1}"
+                   role="button"
+                   class="button-3 w-file-upload-label">
+              <div class="w-icon-file-upload-icon"></div>
+              <div class="text w-inline-block">Upload File</div>
+            </label>
+            <div class="w-file-upload-info">Max file size 10MB.</div>
+          </div>
+          <div class="w-file-upload-uploading w-hidden">
+            <div class="w-file-upload-uploading-btn">
+              <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+                <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
+                <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
+                  <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
+                </path>
+              </svg>
+              <div class="w-inline-block">Uploading...</div>
+            </div>
+          </div>
+          <div class="w-file-upload-success w-hidden">
+            <div class="w-file-upload-file">
+              <div class="w-file-upload-file-name"></div>
+              <div role="button" class="w-file-remove-link">
+                <div class="w-icon-file-upload-remove"></div>
+              </div>
+            </div>
+          </div>
+          <div class="w-file-upload-error w-hidden">
+            <div class="w-file-upload-error-msg"
+                 data-w-size-error="Upload failed. Max size for files is 10 MB."
+                 data-w-type-error="Upload failed. Invalid file type."
+                 data-w-generic-error="Upload failed. Something went wrong. Please retry.">
+              Upload failed. Max size for files is 10 MB.
+            </div>
+          </div>`;
+
+        // Legg til event listener på det nye input elementet
+        const newInput = newUploadDiv.querySelector('.w-file-upload-input');
+        if (newInput) {
+            console.log("Legger til event listener på nytt input element");
+            newInput.addEventListener('change', handleFileSelection);
+        }
+
+        // Legg til event listener for remove-knappen
+        const removeButton = newUploadDiv.querySelector('.w-file-remove-link');
+        if (removeButton) {
+            removeButton.addEventListener('click', function () {
+                console.log("Remove knapp klikket");
+                const defaultView = newUploadDiv.querySelector('.w-file-upload-default');
+                const successView = newUploadDiv.querySelector('.w-file-upload-success');
+                if (defaultView && successView) {
+                    defaultView.classList.remove('w-hidden');
+                    successView.classList.add('w-hidden');
+                }
+                newInput.value = '';
+            });
+        }
+
+        // Sett inn det nye elementet etter det nåværende elementet
+        console.log("Setter inn nytt element etter gjeldende element");
+        fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
+    }
 }
 
 // Vis valgte filer
@@ -799,94 +790,93 @@ async function handleLongContextSubmit() {
  * cleanupFileUploads
  */
 function cleanupFileUploads() {
-  console.log("Starting cleanupFileUploads");
-  
-  // Fjern eksisterende event listeners før vi legger til nye
-  const existingInputs = document.querySelectorAll('.w-file-upload-input');
-  existingInputs.forEach(input => {
-    input.removeEventListener('change', handleFileSelection);
-    console.log("Removed event listener from:", input.id);
-  });
-  
-  // Finn den spesifikke formen for file uploads (den med Context file upload label)
-  const fileUploadForm = Array.from(document.querySelectorAll('.form-block-2.w-form'))
-    .find(form => {
-      const label = form.querySelector('label');
-      return label && label.textContent === 'Context file upload';
+    console.log("Starting cleanupFileUploads");
+    
+    // Fjern eksisterende event listeners før vi legger til nye
+    const existingInputs = document.querySelectorAll('.w-file-upload-input');
+    existingInputs.forEach(input => {
+        input.removeEventListener('change', handleFileSelection);
+        console.log("Removed event listener from:", input.id);
     });
+    
+    // Finn den spesifikke formen for file uploads (den med Context file upload label)
+    const fileUploadForm = Array.from(document.querySelectorAll('.form-block-2.w-form'))
+      .find(form => {
+        const label = form.querySelector('label');
+        return label && label.textContent === 'Context file upload';
+      });
 
-  if (!fileUploadForm) {
-    console.log("Fant ikke file upload form");
-    return;
-  }
-
-  // Tøm innholdet i formen, men behold label
-  const label = fileUploadForm.querySelector('label');
-  const form = fileUploadForm.querySelector('form');
-  if (form) {
-    form.innerHTML = '';
-    if (label) {
-      form.appendChild(label);
+    if (!fileUploadForm) {
+      console.log("Fant ikke file upload form");
+      return;
     }
 
-    // Opprett ett nytt file-upload element
-    const newUploadDiv = document.createElement('div');
-    newUploadDiv.className = 'w-file-upload';
-    newUploadDiv.innerHTML = `
-      <div class="w-file-upload-default">
-        <input class="w-file-upload-input" 
-               accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
-               name="file"
-               data-name="File"
-               type="file"
-               id="file-1">
-        <label for="file-1"
-               role="button"
-               class="button-3 w-file-upload-label">
-          <div class="w-icon-file-upload-icon"></div>
-          <div class="text w-inline-block">Upload File</div>
-        </label>
-        <div class="w-file-upload-info">Max file size 10MB.</div>
-      </div>
-      <div class="w-file-upload-uploading w-hidden">
-        <div class="w-file-upload-uploading-btn">
-          <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
-            <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
-            <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
-              <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
-            </path>
-          </svg>
-          <div class="w-inline-block">Uploading...</div>
+    // Tøm innholdet i formen, men behold label
+    const label = fileUploadForm.querySelector('label');
+    const form = fileUploadForm.querySelector('form');
+    if (form) {
+      form.innerHTML = '';
+      if (label) {
+        form.appendChild(label);
+      }
+
+      // Opprett ett nytt file-upload element
+      const newUploadDiv = document.createElement('div');
+      newUploadDiv.className = 'w-file-upload';
+      newUploadDiv.innerHTML = `
+        <div class="w-file-upload-default">
+          <input class="w-file-upload-input" 
+                 accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
+                 name="file"
+                 data-name="File"
+                 type="file"
+                 id="file-1">
+          <label for="file-1"
+                 role="button"
+                 class="button-3 w-file-upload-label">
+            <div class="w-icon-file-upload-icon"></div>
+            <div class="text w-inline-block">Upload File</div>
+          </label>
+          <div class="w-file-upload-info">Max file size 10MB.</div>
         </div>
-      </div>
-      <div class="w-file-upload-success w-hidden">
-        <div class="w-file-upload-file">
-          <div class="w-file-upload-file-name"></div>
-          <div role="button" class="w-file-remove-link">
-            <div class="w-icon-file-upload-remove"></div>
+        <div class="w-file-upload-uploading w-hidden">
+          <div class="w-file-upload-uploading-btn">
+            <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+              <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
+              <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
+                <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
+              </path>
+            </svg>
+            <div class="w-inline-block">Uploading...</div>
           </div>
         </div>
-      </div>
-      <div class="w-file-upload-error w-hidden">
-        <div class="w-file-upload-error-msg"
-             data-w-size-error="Upload failed. Max size for files is 10 MB."
-             data-w-type-error="Upload failed. Invalid file type."
-             data-w-generic-error="Upload failed. Something went wrong. Please retry.">
-          Upload failed. Max size for files is 10 MB.
+        <div class="w-file-upload-success w-hidden">
+          <div class="w-file-upload-file">
+            <div class="w-file-upload-file-name"></div>
+            <div role="button" class="w-file-remove-link">
+              <div class="w-icon-file-upload-remove"></div>
+            </div>
+          </div>
         </div>
-      </div>`;
+        <div class="w-file-upload-error w-hidden">
+          <div class="w-file-upload-error-msg"
+               data-w-size-error="Upload failed. Max size for files is 10 MB."
+               data-w-type-error="Upload failed. Invalid file type."
+               data-w-generic-error="Upload failed. Something went wrong. Please retry.">
+            Upload failed. Max size for files is 10 MB.
+          </div>
+        </div>`;
 
-    // Legg til event listener på det nye input elementet
-    const newInput = newUploadDiv.querySelector('.w-file-upload-input');
-    if (newInput) {
-      console.log("Adding event listener to new input:", newInput.id);
-      // Bruk once: true for å sikre at listener kun kjører én gang
-      newInput.addEventListener('change', handleFileSelection, { once: true });
+      // Legg til event listener på det nye input elementet
+      const newInput = newUploadDiv.querySelector('.w-file-upload-input');
+      if (newInput) {
+        console.log("Adding event listener to new input:", newInput.id);
+        newInput.addEventListener('change', handleFileSelection);
+      }
+
+      // Legg til det nye elementet i formen
+      form.appendChild(newUploadDiv);
     }
-
-    // Legg til det nye elementet i formen
-    form.appendChild(newUploadDiv);
-  }
 }
 
 /**
