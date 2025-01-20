@@ -112,15 +112,14 @@ async function sendMessage(chatId, message) {
   console.log("Debug - Chat ID før sending:", chatId);
   console.log("Debug - Current chat ID:", currentChatId);
   
-  const actualChatId = chatId || currentChatId;
-  
-  const url = `${API_BASE_URL}/chats/${encodeURIComponent(actualChatId)}/messages`;
+  var actualChatId = chatId || currentChatId;
+  var url = API_BASE_URL + "/chats/" + encodeURIComponent(actualChatId) + "/messages";
   console.log("Debug - Full URL for sending:", url);
 
-  const response = await fetch(url, {
-    method: 'POST',
+  var response = await fetch(url, {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       message: message,
@@ -129,9 +128,9 @@ async function sendMessage(chatId, message) {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    var errorData = await response.json().catch(function() { return {}; });
     console.error("Debug - Response error data:", errorData);
-    throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+    throw new Error("Nettverksfeil: " + response.status + " " + response.statusText + "\n" + JSON.stringify(errorData));
   }
 
   return await response.json();
