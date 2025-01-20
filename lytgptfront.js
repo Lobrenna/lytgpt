@@ -141,7 +141,6 @@ async function onSendMessage() {
     try {
         let response;
         
-        // Sjekk om vi har filer og skal bruke long-context
         if (hasFiles) {
             console.log("Sender request med filer til long-context endpoint");
             
@@ -194,9 +193,8 @@ async function onSendMessage() {
                 throw new Error('Kunne ikke opprette ny chat');
             }
 
-            // Replace spaces with underscores before encoding
-            const normalizedChatId = currentChatId.trim().replace(/ /g, '_');
-            const encodedChatId = encodeURIComponent(normalizedChatId);
+            // Use currentChatId directly - it's already properly formatted
+            const encodedChatId = encodeURIComponent(currentChatId);
             console.log("Sending message to chat ID:", encodedChatId);
 
             response = await fetch(`${API_BASE_URL}/chat/${encodedChatId}/messages`, {
@@ -300,7 +298,7 @@ async function createNewChat() {
         
         if (response.ok) {
             const chat = await response.json();
-            currentChatId = chat.title; // No need to normalize since we're already using underscores
+            currentChatId = chatTitle; // Use our formatted title directly
             if (modelSelector) {
                 modelSelector.value = selectedModel;
             }
