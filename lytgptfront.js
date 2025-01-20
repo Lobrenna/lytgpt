@@ -139,7 +139,6 @@ async function onSendMessage() {
                 body: formData
             });
         } else {
-            // Create new chat if needed
             if (!currentChatId) {
                 console.log("No current chat, creating new chat first");
                 await createNewChat();
@@ -150,7 +149,7 @@ async function onSendMessage() {
             }
 
             const encodedChatId = encodeURIComponent(currentChatId);
-            const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/message`; // Changed to singular 'message'
+            const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/message`;
             console.log("Sending message to endpoint:", endpoint);
 
             response = await fetch(endpoint, {
