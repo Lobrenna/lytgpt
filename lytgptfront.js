@@ -195,9 +195,10 @@ async function onSendMessage() {
             }
 
             const encodedChatId = encodeURIComponent(currentChatId);
-            console.log("Sending message to chat ID:", encodedChatId);
+            const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/message`;
+            console.log("Sending message to endpoint:", endpoint);
 
-            response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}/message`, {
+            response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -269,6 +270,9 @@ async function createNewChat() {
         }
         console.log("Oppretter ny chat med modell:", selectedModel);
         
+        const endpoint = `${CHATS_ENDPOINT}`;
+        console.log("Creating chat at endpoint:", endpoint);
+        
         // Generate timestamp in DDMMYY_HHMM format
         const now = new Date();
         const timestamp = now.toLocaleString('no', {
@@ -280,14 +284,14 @@ async function createNewChat() {
             hour12: false
         }).replace(/[/,.: ]/g, '').replace(/(\d{6})(\d{4})/, '$1_$2');
 
-        // Get initial message if available, otherwise use "ny_chat"
+        // Get initial message if available
         let initialTitle = chatInput && chatInput.value ? 
             chatInput.value.trim().substring(0, 20).replace(/[^a-zA-Z0-9]/g, '_') : 
             'ny_chat';
         
         const chatTitle = `${initialTitle}_${timestamp}`;
         
-        const response = await fetch(`${CHATS_ENDPOINT}`, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -324,12 +328,13 @@ async function createNewChat() {
  */
 async function loadChat(chatId) {
     try {
-        // Rydd opp i file uploads først
         cleanupFileUploads();
         
         const encodedChatId = encodeURIComponent(chatId);
+        const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}`;
+        console.log("Loading chat from endpoint:", endpoint);
         
-        const response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}`);
+        const response = await fetch(endpoint);
         if (response.ok) {
             const chat = await response.json();
             currentChatId = chat.title;
