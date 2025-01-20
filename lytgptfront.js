@@ -154,9 +154,6 @@ async function onSendMessage() {
       if (!currentChatId) {
         throw new Error("Kunne ikke opprette ny chat - ingen chat ID mottatt");
       }
-      
-      // Vent litt for å gi backend tid til å initialisere chatten
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Legg til brukerens melding i chatten
@@ -268,12 +265,6 @@ async function createNewChat() {
     currentChatId = chatId;
     console.log("Ny chat opprettet med ID:", currentChatId);
     
-    // Verifiser at chatten eksisterer før vi fortsetter
-    const verifyResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (!verifyResponse.ok) {
-      throw new Error("Chat ble opprettet, men kan ikke verifiseres");
-    }
-    
     if (modelSelector) {
       modelSelector.value = selectedModel;
     }
@@ -282,6 +273,9 @@ async function createNewChat() {
     if (chatSelector) {
       chatSelector.value = currentChatId;
     }
+    
+    // Vent litt for å gi backend tid til å initialisere chatten
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     
