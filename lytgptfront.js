@@ -101,7 +101,6 @@ function appendMessageToChat(role, htmlContent) {
 
 /**
  * onSendMessage
- *  - Henter brukerens melding => viser urørt i chat => sender til backend => mottar svar => viser urørt
  */
 async function onSendMessage() {
     if (!chatInput || !chatInput.value.trim()) return;
@@ -122,22 +121,13 @@ async function onSendMessage() {
         const uploadDiv = input.closest('.w-file-upload');
         const successView = uploadDiv?.querySelector('.w-file-upload-success');
         
-        // Sjekk om filen er valgt (success view er synlig)
-        if (input.files && 
-            input.files[0] && 
-            successView && 
-            !successView.classList.contains('w-hidden')) {
-            
+        if (input.files && input.files[0] && successView && !successView.classList.contains('w-hidden')) {
             fileCount++;
             console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
             formData.append('files', input.files[0]);
             hasFiles = true;
         }
     });
-    
-    // Vis brukerens melding
-    appendMessageToChat('user', message);
-    appendMessageToChat('assistant', 'Genererer svar...');
 
     try {
         let response;
@@ -149,9 +139,18 @@ async function onSendMessage() {
                 body: formData
             });
         } else {
-            // Update to use /chats/{chat_id}/messages (plural)
+            // Create new chat if needed
+            if (!currentChatId) {
+                console.log("No current chat, creating new chat first");
+                await createNewChat();
+                
+                if (!currentChatId) {
+                    throw new Error('Kunne ikke opprette ny chat');
+                }
+            }
+
             const encodedChatId = encodeURIComponent(currentChatId);
-            const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/messages`;
+            const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/message`; // Changed to singular 'message'
             console.log("Sending message to endpoint:", endpoint);
 
             response = await fetch(endpoint, {
@@ -161,7 +160,7 @@ async function onSendMessage() {
                 },
                 body: JSON.stringify({
                     message: message,
-                    model: selectedModel  // Changed from preferred_model to match API
+                    model: selectedModel
                 })
             });
         }
