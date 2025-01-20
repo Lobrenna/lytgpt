@@ -106,7 +106,7 @@ function appendMessageToChat(role, htmlContent) {
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
  */
-async function sendMessage(chatId, message) {
+async function sendMessage(chatId, message, retryCount = 3) {
   console.log("Debug - Chat ID før sending:", chatId);
   console.log("Debug - Current chat ID:", currentChatId);
   
@@ -114,24 +114,38 @@ async function sendMessage(chatId, message) {
   var url = API_BASE_URL + "/chats/" + encodeURIComponent(actualChatId) + "/messages";
   console.log("Debug - Full URL for sending:", url);
 
-  var response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message: message,
-      model: selectedModel
-    })
-  });
+  for (let attempt = 0; attempt < retryCount; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: message,
+          model: selectedModel
+        })
+      });
 
-  if (!response.ok) {
-    var errorData = await response.json().catch(function() { return {}; });
-    console.error("Debug - Response error data:", errorData);
-    throw new Error("Nettverksfeil: " + response.status + " " + response.statusText + "\n" + JSON.stringify(errorData));
+      if (response.ok) {
+        return await response.json();
+      } else if (response.status === 404 && attempt < retryCount - 1) {
+        console.log(`Attempt ${attempt + 1}: Chat not ready, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Vent 2 sekunder mellom forsøk
+        continue;
+      }
+
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Debug - Response error data:", errorData);
+      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+    } catch (error) {
+      if (attempt === retryCount - 1) {
+        throw error;
+      }
+      console.log(`Attempt ${attempt + 1} failed, retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
-
-  return await response.json();
 }
 
 /**
@@ -225,7 +239,6 @@ function createNewChatId() {
 
 /**
  * createNewChat - Opprett en ny chat i backend
- * @returns {Promise<string>} Den nye chat ID-en
  */
 async function createNewChat() {
   try {
@@ -274,15 +287,15 @@ async function createNewChat() {
       chatSelector.value = currentChatId;
     }
     
-    // Vent litt for å gi backend tid til å initialisere chatten
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Vent litt lengre for å gi backend tid til å initialisere chatten
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     
     return chatId;
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
-    currentChatId = null; // Reset currentChatId hvis noe går galt
+    currentChatId = null;
     throw error;
   }
 }
