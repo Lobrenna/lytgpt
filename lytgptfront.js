@@ -100,15 +100,16 @@ function appendMessageToChat(role, htmlContent) {
 }
 
 /**
- * onSendMessage
+ * onSendMessage - Handle sending messages and file uploads
  */
 async function onSendMessage() {
     if (!chatInput || !chatInput.value.trim()) return;
 
     const message = chatInput.value.trim();
+    const generatingMessage = 'Genererer svar...';
     
     // Add "Generating response..." message
-    appendMessageToChat('system', 'Genererer svar...');
+    appendMessageToChat('system', generatingMessage);
     
     try {
         if (!currentChatId) {
@@ -123,20 +124,20 @@ async function onSendMessage() {
         const fileInputs = document.querySelectorAll('.w-file-upload-input');
         console.log("Alle file inputs funnet:", fileInputs.length);
         
-        // Samle alle filer som er valgt
-        let hasFiles = false;
+        // Prepare FormData for file uploads
         const formData = new FormData();
         formData.append('message', message);
         
-        // Samle alle filer fra inputs som har en fil valgt
+        // Check for files and add them to FormData
+        let hasFiles = false;
         let fileCount = 0;
+        
         fileInputs.forEach((input) => {
             const uploadDiv = input.closest('.w-file-upload');
             const successView = uploadDiv?.querySelector('.w-file-upload-success');
             
             if (input.files && input.files[0] && successView && !successView.classList.contains('w-hidden')) {
                 fileCount++;
-                console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
                 formData.append(`file${fileCount}`, input.files[0]);
                 hasFiles = true;
             }
@@ -176,27 +177,35 @@ async function onSendMessage() {
         const data = await response.json();
         console.log("Response data:", data);
         
-        // Remove "Generating response..." message if it exists
-        const generatingMsg = chatMessages.querySelector('.chat-message.system:last-child');
-        if (generatingMsg && generatingMsg.textContent.includes('Genererer svar...')) {
+        // Remove "Generating response..." message
+        const generatingMsg = Array.from(chatMessages.children).find(
+            msg => msg.classList.contains('system') && msg.textContent.includes(generatingMessage)
+        );
+        if (generatingMsg) {
             chatMessages.removeChild(generatingMsg);
         }
         
         // Show model info and response
         const modelInfo = `Modell: ${data.selected_model || selectedModel} | Kontekst: ${formatFileSize(data.context_length || 0)} | Est. tokens: ${data.estimated_tokens || 0}`;
+        appendMessageToChat('user', message);
         appendMessageToChat('system', modelInfo);
         appendMessageToChat('assistant', data.response);
         
-        // Clear chat input
+        // Clear chat input and reset file uploads
         chatInput.value = '';
+        if (hasFiles) {
+            cleanupFileUploads();
+        }
         
     } catch (error) {
         console.error('Feil ved sending av melding:', error);
         console.error('Full error object:', error);
         
-        // Remove "Generating response..." message if it exists
-        const generatingMsg = chatMessages.querySelector('.chat-message.system:last-child');
-        if (generatingMsg && generatingMsg.textContent.includes('Genererer svar...')) {
+        // Remove "Generating response..." message
+        const generatingMsg = Array.from(chatMessages.children).find(
+            msg => msg.classList.contains('system') && msg.textContent.includes(generatingMessage)
+        );
+        if (generatingMsg) {
             chatMessages.removeChild(generatingMsg);
         }
         
@@ -204,7 +213,9 @@ async function onSendMessage() {
     }
 }
 
-// Hjelpefunksjon for å formatere filstørrelse
+/**
+ * formatFileSize - Helper function to format byte sizes
+ */
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -248,19 +259,18 @@ async function createNewChat() {
         const endpoint = `${CHATS_ENDPOINT}`;
         console.log("Creating chat at endpoint:", endpoint);
         
-        // Generate timestamp in YYYYMMDD_HHMMSS format
-        const now = new Date();
-        const timestamp = now.toISOString()
-            .replace(/[-:]/g, '')     // Remove dashes and colons
-            .replace(/T/g, '_')       // Replace T with underscore
-            .replace(/\..+/, '');     // Remove milliseconds
-        
-        // Get initial message if available and sanitize it
+        // Get initial message if available
         let initialTitle = chatInput && chatInput.value ? 
             chatInput.value.trim().substring(0, 20).replace(/\s+/g, '_') : 
             'ny_chat';
+            
+        // Generate timestamp in YYYYMMDD_HHMMSS format
+        const now = new Date();
+        const timestamp = now.toISOString()
+            .replace(/[-:T]/g, '_')  // Replace dash, colon, and T with underscore
+            .split('.')[0];          // Remove milliseconds
         
-        // Use underscore between title and timestamp
+        // Create chat title with underscore format
         const chatTitle = `${initialTitle}_${timestamp}`;
         
         const response = await fetch(endpoint, {
@@ -272,26 +282,34 @@ async function createNewChat() {
             })
         });
         
-        if (response.ok) {
-            const chat = await response.json();
-            currentChatId = chatTitle; // Use our formatted title directly
-            if (modelSelector) {
-                modelSelector.value = selectedModel;
-            }
-            await fetchChats();
-            if (chatSelector) {
-                chatSelector.value = currentChatId;
-                await loadChat(currentChatId);
-            }
-            appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-            console.log("Ny chat opprettet med ID:", currentChatId);
-        } else {
-            console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
-            alert("Feil ved opprettelse av ny chat.");
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error creating chat:", errorData);
+            throw new Error(`Feil ved opprettelse av chat: ${response.status} ${response.statusText}`);
         }
+        
+        const chat = await response.json();
+        currentChatId = chatTitle;  // Use our formatted title
+        
+        if (modelSelector) {
+            modelSelector.value = selectedModel;
+        }
+        
+        await fetchChats();
+        
+        if (chatSelector) {
+            chatSelector.value = currentChatId;
+            await loadChat(currentChatId);
+        }
+        
+        appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+        console.log("Ny chat opprettet med ID:", currentChatId);
+        
+        return chat;
+        
     } catch (error) {
         console.error("Feil ved opprettelse av ny chat:", error);
-        alert("Feil ved opprettelse av ny chat.");
+        throw error;
     }
 }
 
