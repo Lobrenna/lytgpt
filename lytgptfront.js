@@ -1,5 +1,3 @@
-'<!-- JavaScript for Chat-funksjonalitet (forbedret håndtering av kodeblokker) -->
-
 // URL til FastAPI-backenden (lokal utvikling)
 const API_BASE_URL = "http://localhost:8000";
 
