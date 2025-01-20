@@ -115,7 +115,7 @@ async function sendMessage(chatId, message) {
   // Bruk currentChatId hvis chatId ikke er gyldig
   const actualChatId = chatId || currentChatId;
   
-  const url = `${API_BASE_URL}/chats/${encodeURIComponent(actualChatId)}/messages`; // Merk: messages i flertall
+  const url = `${API_BASE_URL}/chats/${encodeURIComponent(actualChatId)}/messages`;
   console.log("Debug - Full URL for sending:", url);
 
   const response = await fetch(url, {
@@ -125,7 +125,7 @@ async function sendMessage(chatId, message) {
     },
     body: JSON.stringify({
       message: message,
-      preferred_model: selectedModel
+      model: selectedModel
     })
   });
 
