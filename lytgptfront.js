@@ -6,6 +6,7 @@ console.log("API endpoints configuration:", {
   baseUrl: API_BASE_URL
 });
 
+
 // Elementer fra Webflow (juster ID-ene om nødvendig)
 const modelSelector = document.getElementById('model-selector');
 const chatSelector = document.getElementById('chat-selector');
