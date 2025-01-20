@@ -83,6 +83,87 @@ function hideSpinner(buttonElement) {
 }
 
 /**
+ * formatFileSize - Hjelpefunksjon for å formatere filstørrelse
+ */
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * appendMessageToChat(role, htmlContent)
+ *  - Oppretter en <div> med klasser 'chat-message' + role
+ *  - Legger inn 'htmlContent'
+ *  - Kjører Prism.highlightElement for syntax highlighting
+ */
+function appendMessageToChat(role, htmlContent) {
+  if (!chatMessages) {
+    console.error("Chat messages element not found.");
+    return;
+  }
+  const msgEl = document.createElement('div');
+  msgEl.classList.add('chat-message', role);
+
+  // Legg til pre-wrap styling for å bevare mellomrom og linjeskift
+  msgEl.style.whiteSpace = 'pre-wrap';
+
+  // Fjern <p> tags fra brukerens meldinger
+  if (role === 'user') {
+    htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
+  }
+
+  // Sjekk om innholdet ser ut som ren kode (ingen markdown)
+  if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
+    // Wrap innholdet i en kodeblokk hvis det ser ut som kode
+    htmlContent = '```\n' + htmlContent + '\n```';
+    // Konverter til markdown på nytt
+    htmlContent = renderMarkdown(htmlContent);
+  }
+
+  msgEl.innerHTML = htmlContent;
+
+  // Kjør syntax-highlighting for hvert <code> element
+  const codeBlocks = msgEl.querySelectorAll('pre code');
+  codeBlocks.forEach((block) => {
+    Prism.highlightElement(block);
+  });
+
+  chatMessages.appendChild(msgEl);
+  chatMessages.scrollTo({
+    top: chatMessages.scrollHeight,
+    behavior: 'smooth'
+  });
+}
+
+/**
+ * displayChatMessages
+ *  - Viser en hel liste av meldinger for en chat, urørt
+ */
+function displayChatMessages(messages) {
+  clearChatMessages();
+  messages.forEach(msg => {
+    // Ingen fjerning av anførselstegn
+    const content = msg.content;
+    const html = renderMarkdown(content);
+    appendMessageToChat(msg.role, html);
+  });
+}
+
+/**
+ * clearChatMessages - Fjerner alle meldinger fra chat-vinduet
+ */
+function clearChatMessages() {
+  if (!chatMessages) {
+    console.error("Chat messages element not found.");
+    return;
+  }
+  chatMessages.innerHTML = '';
+}
+
+/**
  * createNewChat - Oppretter en ny chat via backend
  * @returns {string} - Den nye chat-ID-en
  */
@@ -105,6 +186,7 @@ async function createNewChat() {
     }
 
     const chatData = await response.json();
+    console.log("Backend returnerte chatData:", chatData);
     return chatData.title; // Bruk backend's genererte title (chat_id)
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
@@ -221,6 +303,8 @@ async function onSendMessage() {
 
       data = await response.json();
 
+      console.log("Backend returnerte data:", data);
+
       // Fjern "Genererer svar..." meldingen
       chatMessages.removeChild(chatMessages.lastChild);
 
@@ -229,6 +313,7 @@ async function onSendMessage() {
         console.log("Chat ID ble renamet til:", data.new_chat_id);
         // Oppdater currentChatId
         currentChatId = data.new_chat_id;
+        console.log("Oppdatert currentChatId til:", currentChatId);
 
         // Oppdater chat-selector
         await fetchChats();
@@ -252,6 +337,7 @@ async function onSendMessage() {
       // Vanlig chat uten filer
       if (!currentChatId) {
         currentChatId = await createNewChat();
+        console.log("Oppdatert currentChatId til:", currentChatId);
       }
 
       if (!currentChatId) {
@@ -265,6 +351,7 @@ async function onSendMessage() {
         console.log("Chat ID ble renamet til:", data.new_chat_id);
         // Oppdater currentChatId
         currentChatId = data.new_chat_id;
+        console.log("Oppdatert currentChatId til:", currentChatId);
 
         // Oppdater chat-selector
         await fetchChats();
@@ -296,76 +383,6 @@ async function onSendMessage() {
 }
 
 /**
- * appendMessageToChat(role, htmlContent)
- *  - Oppretter en <div> med klasser 'chat-message' + role
- *  - Legger inn 'htmlContent'
- *  - Kjører Prism.highlightElement for syntax highlighting
- */
-function appendMessageToChat(role, htmlContent) {
-  if (!chatMessages) {
-    console.error("Chat messages element not found.");
-    return;
-  }
-  const msgEl = document.createElement('div');
-  msgEl.classList.add('chat-message', role);
-
-  // Legg til pre-wrap styling for å bevare mellomrom og linjeskift
-  msgEl.style.whiteSpace = 'pre-wrap';
-
-  // Fjern <p> tags fra brukerens meldinger
-  if (role === 'user') {
-    htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
-  }
-
-  // Sjekk om innholdet ser ut som ren kode (ingen markdown)
-  if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
-    // Wrap innholdet i en kodeblokk hvis det ser ut som kode
-    htmlContent = '```\n' + htmlContent + '\n```';
-    // Konverter til markdown på nytt
-    htmlContent = renderMarkdown(htmlContent);
-  }
-
-  msgEl.innerHTML = htmlContent;
-
-  // Kjør syntax-highlighting for hvert <code> element
-  const codeBlocks = msgEl.querySelectorAll('pre code');
-  codeBlocks.forEach((block) => {
-    Prism.highlightElement(block);
-  });
-
-  chatMessages.appendChild(msgEl);
-  chatMessages.scrollTo({
-    top: chatMessages.scrollHeight,
-    behavior: 'smooth'
-  });
-}
-
-/**
- * displayChatMessages
- *  - Viser en hel liste av meldinger for en chat, urørt
- */
-function displayChatMessages(messages) {
-  clearChatMessages();
-  messages.forEach(msg => {
-    // Ingen fjerning av anførselstegn
-    const content = msg.content;
-    const html = renderMarkdown(content);
-    appendMessageToChat(msg.role, html);
-  });
-}
-
-/**
- * clearChatMessages - Fjerner alle meldinger fra chat-vinduet
- */
-function clearChatMessages() {
-  if (!chatMessages) {
-    console.error("Chat messages element not found.");
-    return;
-  }
-  chatMessages.innerHTML = '';
-}
-
-/**
  * onNewChat - Håndterer klikk på new-chat-button
  */
 async function onNewChat() {
@@ -376,7 +393,9 @@ async function onNewChat() {
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
     const chatId = await createNewChat();
+    console.log("Backend returnerte chatId:", chatId);
     currentChatId = chatId; // Sett currentChatId til den unike ID-en
+    console.log("Oppdatert currentChatId til:", currentChatId);
 
     await fetchChats();
     if (chatSelector) {
@@ -532,53 +551,6 @@ function onCancelDelete() {
     deleteConfirmation.style.display = 'none';
     overlay.style.display = 'none';
   }
-}
-
-/**
- * setupEventListeners - Setter opp alle nødvendige event listeners
- */
-function setupEventListeners() {
-  console.log("Setting up event listeners...");
-  
-  if (modelSelector) {
-    modelSelector.addEventListener('change', onModelChange);
-  }
-  if (chatSelector) {
-    chatSelector.addEventListener('change', onChatChange);
-  }
-  if (sendButton) {
-    sendButton.addEventListener('click', onSendMessage);
-    sendButton.setAttribute('type', 'button');
-  }
-  if (uploadFilesButton) {
-    uploadFilesButton.addEventListener('click', onUploadFiles);
-  }
-  if (setUrlButton) {
-    setUrlButton.addEventListener('click', onSetUrl);
-  }
-  if (newChatButton) {
-    newChatButton.addEventListener('click', onNewChat);
-  }
-  if (deleteChatButton) {
-    deleteChatButton.addEventListener('click', onDeleteChat);
-  }
-  if (deleteConfirmYes) {
-    deleteConfirmYes.addEventListener('click', onConfirmDelete);
-  }
-  if (deleteConfirmNo) {
-    deleteConfirmNo.addEventListener('click', onCancelDelete);
-  }
-
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        onSendMessage();
-      }
-    });
-  }
-
-  console.log("Event listeners setup complete");
 }
 
 /**
@@ -746,11 +718,15 @@ async function fetchChats() {
       option.textContent = chat; // Sett teksten til chat-tittelen
       chatSelector.appendChild(option);
     });
-    
+
+    console.log("Hentet chats:", chats);
+
     // Sett current chat hvis den finnes i listen
     if (currentChatId && chats.includes(currentChatId)) {
       chatSelector.value = currentChatId;
       await loadChat(currentChatId);
+    } else {
+      console.log("currentChatId finnes ikke i listen over chats.");
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
@@ -763,10 +739,12 @@ async function fetchChats() {
  */
 async function loadChat(chatId) {
   try {
+    console.log("Laster chat med ID:", chatId);
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
       currentChatId = chat.title; // 'chat.title' er den unike chat_id
+      console.log("Oppdatert currentChatId til:", currentChatId);
       // Oppdater modellvalg
       selectedModel = chat.model;
       if (modelSelector) {
@@ -917,17 +895,6 @@ function updateFileList(files) {
 }
 
 /**
- * formatFileSize - Hjelpefunksjon for å formatere filstørrelse
- */
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-/**
  * setupEventListeners - Setter opp alle nødvendige event listeners
  */
 function setupEventListeners() {
@@ -984,124 +951,6 @@ async function updateChatSelector(newChatId) {
     chatSelector.value = newChatId;
     await loadChat(newChatId);
   }
-}
-
-/**
- * fetchChats - Henter tilgjengelige chats fra backend
- */
-async function fetchChats() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const chats = await response.json();
-    
-    if (!chatSelector) {
-      console.error("Chat selector not found");
-      return;
-    }
-    
-    // Tøm eksisterende options
-    chatSelector.innerHTML = '';
-    
-    // Legg til "Ny chat" option
-    const newChatOption = document.createElement('option');
-    newChatOption.value = "new";
-    newChatOption.textContent = "Ny chat";
-    chatSelector.appendChild(newChatOption);
-    
-    // Legg til hver chat som en option
-    chats.forEach(chat => {
-      const option = document.createElement('option');
-      option.value = chat; // Sett verdien til chat-tittelen (unik ID)
-      option.textContent = chat; // Sett teksten til chat-tittelen
-      chatSelector.appendChild(option);
-    });
-    
-    // Sett current chat hvis den finnes i listen
-    if (currentChatId && chats.includes(currentChatId)) {
-      chatSelector.value = currentChatId;
-      await loadChat(currentChatId);
-    }
-  } catch (error) {
-    console.error('Feil ved henting av chats:', error);
-  }
-}
-
-/**
- * loadChat - Laster en spesifikk chat fra backend
- * @param {string} chatId - ID til chatten som skal lastes
- */
-async function loadChat(chatId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title; // 'chat.title' er den unike chat_id
-      // Oppdater modellvalg
-      selectedModel = chat.model;
-      if (modelSelector) {
-        modelSelector.value = chat.model;
-      }
-      displayChatMessages(chat.messages);
-      console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-    } else {
-      console.error("Feil ved lasting av chat:", response.status, response.statusText);
-      alert("Feil ved lasting av chat.");
-    }
-  } catch (error) {
-    console.error("Feil ved lasting av chat:", error);
-    alert("Feil ved lasting av chat.");
-  }
-}
-
-/**
- * setupEventListeners - Setter opp alle nødvendige event listeners
- */
-function setupEventListeners() {
-  console.log("Setting up event listeners...");
-  
-  if (modelSelector) {
-    modelSelector.addEventListener('change', onModelChange);
-  }
-  if (chatSelector) {
-    chatSelector.addEventListener('change', onChatChange);
-  }
-  if (sendButton) {
-    sendButton.addEventListener('click', onSendMessage);
-    sendButton.setAttribute('type', 'button');
-  }
-  if (uploadFilesButton) {
-    uploadFilesButton.addEventListener('click', onUploadFiles);
-  }
-  if (setUrlButton) {
-    setUrlButton.addEventListener('click', onSetUrl);
-  }
-  if (newChatButton) {
-    newChatButton.addEventListener('click', onNewChat);
-  }
-  if (deleteChatButton) {
-    deleteChatButton.addEventListener('click', onDeleteChat);
-  }
-  if (deleteConfirmYes) {
-    deleteConfirmYes.addEventListener('click', onConfirmDelete);
-  }
-  if (deleteConfirmNo) {
-    deleteConfirmNo.addEventListener('click', onCancelDelete);
-  }
-
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        onSendMessage();
-      }
-    });
-  }
-
-  console.log("Event listeners setup complete");
 }
 
 /**
