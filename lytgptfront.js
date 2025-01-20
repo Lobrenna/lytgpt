@@ -1,5 +1,6 @@
 // URL til FastAPI-backenden (lokal utvikling)
 const API_BASE_URL = "http://localhost:8000";
+const CHATS_ENDPOINT = `${API_BASE_URL}/chats`; // Use /chats consistently
 
 // Elementer fra Webflow (juster ID-ene om nødvendig)
 const modelSelector      = document.getElementById('model-selector');
@@ -197,7 +198,7 @@ async function onSendMessage() {
             const encodedChatId = encodeURIComponent(currentChatId);
             console.log("Sending message to chat ID:", encodedChatId);
 
-            response = await fetch(`${API_BASE_URL}/chat/${encodedChatId}/messages`, {
+            response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}/messages`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -287,7 +288,7 @@ async function createNewChat() {
         
         const chatTitle = `${initialTitle}_${timestamp}`;
         
-        const response = await fetch(`${API_BASE_URL}/chats`, {
+        const response = await fetch(`${CHATS_ENDPOINT}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -329,7 +330,7 @@ async function loadChat(chatId) {
         
         const encodedChatId = encodeURIComponent(chatId);
         
-        const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}`);
+        const response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}`);
         if (response.ok) {
             const chat = await response.json();
             currentChatId = chat.title;
@@ -386,7 +387,7 @@ function populateModelSelector(models) {
  */
 async function fetchChats() {
     try {
-        const response = await fetch(`${API_BASE_URL}/chats`);
+        const response = await fetch(`${CHATS_ENDPOINT}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
