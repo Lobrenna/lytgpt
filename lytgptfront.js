@@ -107,45 +107,30 @@ function appendMessageToChat(role, htmlContent) {
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
  */
 async function sendMessage(chatId, message, retryCount = 3) {
-  console.log("Debug - Chat ID før sending:", chatId);
-  console.log("Debug - Current chat ID:", currentChatId);
-  
-  var actualChatId = chatId || currentChatId;
-  var url = API_BASE_URL + "/chats/" + encodeURIComponent(actualChatId) + "/messages";
-  console.log("Debug - Full URL for sending:", url);
-
-  for (let attempt = 0; attempt < retryCount; attempt++) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: message,
-          model: selectedModel
-        })
-      });
-
-      if (response.ok) {
-        return await response.json();
-      } else if (response.status === 404 && attempt < retryCount - 1) {
-        console.log(`Attempt ${attempt + 1}: Chat not ready, waiting...`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Vent 2 sekunder mellom forsøk
-        continue;
-      }
-
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Debug - Response error data:", errorData);
-      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-    } catch (error) {
-      if (attempt === retryCount - 1) {
-        throw error;
-      }
-      console.log(`Attempt ${attempt + 1} failed, retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+  if (!chatId) {
+    throw new Error('Chat ID er påkrevd');
   }
+
+  const encodedChatId = encodeURIComponent(chatId);
+  const url = `${API_BASE_URL}/chat/${encodedChatId}/messages`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: message,
+      preferred_model: selectedModel
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+  }
+
+  return await response.json();
 }
 
 /**
@@ -245,54 +230,35 @@ async function createNewChat() {
     if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
       selectedModel = modelSelector.options[0].value;
     }
-    
-    const chatId = createNewChatId();
-    const requestBody = { 
-      id: chatId,
-      title: chatId,
-      model: selectedModel 
-    };
-    
-    console.log("Oppretter ny chat med data:", requestBody);
+    console.log("Oppretter ny chat med modell:", selectedModel);
     
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        title: "Ny chat", 
+        model: selectedModel 
+      })
     });
     
-    console.log("Create chat response status:", response.status);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Create chat error data:", errorData);
-      throw new Error(`Feil ved opprettelse av chat: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+    if (response.ok) {
+      const chat = await response.json();
+      currentChatId = chat.title;
+      if (modelSelector) {
+        modelSelector.value = selectedModel;
+      }
+      await fetchChats();
+      if (chatSelector) {
+        chatSelector.value = currentChatId;
+        await loadChat(currentChatId);
+      }
+      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+      console.log("Ny chat opprettet med ID:", currentChatId);
+      return currentChatId;
+    } else {
+      console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
+      throw new Error("Feil ved opprettelse av ny chat.");
     }
-    
-    const chat = await response.json();
-    console.log("Create chat response data:", chat);
-    
-    currentChatId = chatId;
-    console.log("Ny chat opprettet med ID:", currentChatId);
-    
-    if (modelSelector) {
-      modelSelector.value = selectedModel;
-    }
-    
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-    }
-    
-    // Vent litt lengre for å gi backend tid til å initialisere chatten
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    
-    return chatId;
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     currentChatId = null;
