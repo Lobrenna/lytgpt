@@ -194,11 +194,10 @@ async function onSendMessage() {
                 throw new Error('Kunne ikke opprette ny chat');
             }
 
-            // Use currentChatId directly - it's already properly formatted
             const encodedChatId = encodeURIComponent(currentChatId);
             console.log("Sending message to chat ID:", encodedChatId);
 
-            response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}/messages`, {
+            response = await fetch(`${CHATS_ENDPOINT}/${encodedChatId}/message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
