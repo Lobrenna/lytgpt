@@ -891,18 +891,63 @@ function onModelChange(e) {
 }
 
 /**
- * DOMContentLoaded => fetchModels, fetchChats, setupEventListeners
+ * fetchChats - Henter eksisterende chats fra backend
  */
-document.addEventListener('DOMContentLoaded', () => {
-  console.log("Upload files input:", uploadFilesInput); // Debug: Se om elementet finnes
-  console.log("Upload files button:", uploadFilesButton); // Debug: Se om knappen finnes
+async function fetchChats() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chats`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const chats = await response.json();
+    
+    if (!chatSelector) {
+      console.error("Chat selector not found");
+      return;
+    }
+    
+    // Tøm eksisterende options
+    chatSelector.innerHTML = '';
+    
+    // Legg til "Ny chat" option
+    const newChatOption = document.createElement('option');
+    newChatOption.value = "new";
+    newChatOption.textContent = "Ny chat";
+    chatSelector.appendChild(newChatOption);
+    
+    // Legg til hver chat som en option
+    chats.forEach(chat => {
+      const option = document.createElement('option');
+      option.value = chat.id;
+      option.textContent = chat.title || chat.id;
+      chatSelector.appendChild(option);
+    });
+    
+    // Sett current chat hvis den finnes i listen
+    if (currentChatId) {
+      chatSelector.value = currentChatId;
+    }
+  } catch (error) {
+    console.error('Feil ved henting av chats:', error);
+  }
+}
 
-  fetchModels();
-  fetchChats();
-  setupEventListeners();
+// Initialiser når DOM er lastet
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("Upload files input:", uploadFilesInput);
+  console.log("Upload files button:", uploadFilesButton);
 
-  if (chatInput) {
-    chatInput.style.color = "#000";
+  try {
+    await fetchModels();
+    await fetchChats();
+    setupEventListeners();
+
+    if (chatInput) {
+      chatInput.style.color = "#000";
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error);
   }
 });
 
