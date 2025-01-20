@@ -904,4 +904,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chatInput) {
     chatInput.style.color = "#000";
   }
-});'
+});
