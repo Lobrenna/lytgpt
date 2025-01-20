@@ -229,6 +229,65 @@ async function sendMessage(chatId, message) {
   return await response.json();
 }
 
+
+async function onProcessLongContext() {
+  // Hent melding og filer fra brukerinput
+  const message = longContextInput.value.trim();
+  const files = longContextFileInput.files;
+  const preferredModel = preferredModelSelector.value;
+
+  if (!message || files.length === 0) {
+    alert("Vennligst skriv inn en melding og last opp minst én fil.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("message", message);
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  if (preferredModel) {
+    formData.append("preferred_model", preferredModel);
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Backend returnerte data:", data);
+
+    // Sjekk om chat_id er renamet
+    if (data.new_chat_id) {
+      console.log("Long-context Chat ID ble renamet til:", data.new_chat_id);
+      // Oppdater currentChatId
+      currentChatId = data.new_chat_id;
+      console.log("Oppdatert currentChatId til:", currentChatId);
+
+      // Oppdater chat-selector
+      await fetchChats();
+      if (chatSelector) {
+        chatSelector.value = currentChatId;
+        await loadChat(currentChatId);
+      }
+    } else {
+      // Vis responsen
+      appendMessageToChat('assistant', data.response);
+    }
+
+  } catch (error) {
+    console.error('Feil ved behandling av long-context:', error);
+    alert("Feil ved behandling av long-context.");
+  }
+}
+
+
 /**
  * onSendMessage - Håndterer sending av meldinger
  */
