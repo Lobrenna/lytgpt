@@ -594,9 +594,7 @@ function setupEventListeners() {
  * handleFileSelection - Håndterer når en fil velges
  */
 function handleFileSelection(event) {
-    // Legg til stack trace for debugging
     console.log("File selection triggered");
-    console.log("Event target:", event.target);
     
     const fileUploadDiv = event.target.closest('.w-file-upload');
     if (!fileUploadDiv) {
@@ -676,10 +674,10 @@ function handleFileSelection(event) {
             </div>
           </div>
           <div class="w-file-upload-error w-hidden">
-            <div class="w-file-upload-error-msg"
-                 data-w-size-error="Upload failed. Max size for files is 10 MB."
-                 data-w-type-error="Upload failed. Invalid file type."
-                 data-w-generic-error="Upload failed. Something went wrong. Please retry.">
+            <div class="w-file-upload-error-msg" 
+                data-w-size-error="Upload failed. Max size for files is 10 MB." 
+                data-w-type-error="Upload failed. Invalid file type." 
+                data-w-generic-error="Upload failed. Something went wrong. Please retry.">
               Upload failed. Max size for files is 10 MB.
             </div>
           </div>`;
@@ -694,7 +692,7 @@ function handleFileSelection(event) {
         // Legg til event listener for remove-knappen
         const removeButton = newUploadDiv.querySelector('.w-file-remove-link');
         if (removeButton) {
-            removeButton.addEventListener('click', function () {
+            removeButton.addEventListener('click', function() {
                 console.log("Remove knapp klikket");
                 const defaultView = newUploadDiv.querySelector('.w-file-upload-default');
                 const successView = newUploadDiv.querySelector('.w-file-upload-success');
