@@ -147,7 +147,10 @@ async function onSendMessage() {
     // Sjekk om vi har en gyldig chat
     if (!currentChatId) {
       console.log("Debug - Ingen aktiv chat, oppretter ny");
-      await createNewChat();
+      await createNewChat(); // Vent på at chatten er opprettet
+      if (!currentChatId) {
+        throw new Error("Kunne ikke opprette ny chat");
+      }
     }
 
     // Legg til brukerens melding i chatten
@@ -168,7 +171,9 @@ async function onSendMessage() {
   } catch (error) {
     console.error('Debug - Feil ved sending av melding:', error);
     console.error('Debug - Full error object:', error);
-    chatMessages.removeChild(chatMessages.lastChild);
+    if (chatMessages.lastChild) {
+      chatMessages.removeChild(chatMessages.lastChild);
+    }
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
   }
 }
@@ -215,6 +220,7 @@ function createNewChatId() {
 
 /**
  * createNewChat - Opprett en ny chat i backend
+ * @returns {Promise<string>} Den nye chat ID-en
  */
 async function createNewChat() {
   try {
@@ -229,30 +235,36 @@ async function createNewChat() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
+        id: chatId,  // Legg til ID eksplisitt
         title: chatId,
         model: selectedModel 
       })
     });
     
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chatId;
-      console.log("Ny chat opprettet med ID:", currentChatId);
-      if (modelSelector) {
-        modelSelector.value = selectedModel;
-      }
-      await fetchChats();
-      if (chatSelector) {
-        chatSelector.value = currentChatId;
-      }
-      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    } else {
-      console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
-      alert("Feil ved opprettelse av ny chat.");
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Feil ved opprettelse av chat: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
     }
+    
+    const chat = await response.json();
+    currentChatId = chatId;
+    console.log("Ny chat opprettet med ID:", currentChatId);
+    
+    if (modelSelector) {
+      modelSelector.value = selectedModel;
+    }
+    
+    await fetchChats();
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+    }
+    
+    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+    
+    return chatId;
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
-    alert("Feil ved opprettelse av ny chat.");
+    throw error; // Videresend feilen så den kan håndteres av kalleren
   }
 }
 
