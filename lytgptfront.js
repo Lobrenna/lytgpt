@@ -106,6 +106,9 @@ function appendMessageToChat(role, htmlContent) {
 /**
  * createNewChat - Opprett en ny chat i backend
  */
+/**
+ * createNewChat - Opprett en ny chat i backend
+ */
 async function createNewChat() {
   try {
     if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
@@ -113,18 +116,21 @@ async function createNewChat() {
     }
     console.log("Oppretter ny chat med modell:", selectedModel);
     
+    const uniqueChatId = `Chat_${new Date().getTime()}`; // Alternativ måte å generere unik ID
+    // Eller la backend generere den unike ID-en
+
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        title: "Ny chat", 
+        title: uniqueChatId, 
         model: selectedModel 
       })
     });
     
     if (response.ok) {
       const chat = await response.json();
-      currentChatId = chat.title;
+      currentChatId = chat.title; // Sett currentChatId til den unike ID-en
       if (modelSelector) {
         modelSelector.value = selectedModel;
       }
@@ -146,6 +152,7 @@ async function createNewChat() {
     throw error;
   }
 }
+
 
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
