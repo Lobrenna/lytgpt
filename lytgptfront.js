@@ -103,6 +103,52 @@ function appendMessageToChat(role, htmlContent) {
   });
 }
 
+
+
+/**
+ * createNewChat - Opprett en ny chat i backend
+ */
+async function createNewChat() {
+  try {
+    if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
+      selectedModel = modelSelector.options[0].value;
+    }
+    console.log("Oppretter ny chat med modell:", selectedModel);
+    
+    const response = await fetch(`${API_BASE_URL}/chats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        title: "Ny chat", 
+        model: selectedModel 
+      })
+    });
+    
+    if (response.ok) {
+      const chat = await response.json();
+      currentChatId = chat.title;
+      if (modelSelector) {
+        modelSelector.value = selectedModel;
+      }
+      await fetchChats();
+      if (chatSelector) {
+        chatSelector.value = currentChatId;
+        await loadChat(currentChatId);
+      }
+      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+      console.log("Ny chat opprettet med ID:", currentChatId);
+      return currentChatId;
+    } else {
+      console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
+      throw new Error("Feil ved opprettelse av ny chat.");
+    }
+  } catch (error) {
+    console.error("Feil ved opprettelse av ny chat:", error);
+    currentChatId = null;
+    throw error;
+  }
+}
+
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
  */
@@ -220,50 +266,6 @@ function clearChatMessages() {
 function createNewChatId() {
   const now = new Date();
   return `Chat_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-}
-
-/**
- * createNewChat - Opprett en ny chat i backend
- */
-async function createNewChat() {
-  try {
-    if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
-      selectedModel = modelSelector.options[0].value;
-    }
-    console.log("Oppretter ny chat med modell:", selectedModel);
-    
-    const response = await fetch(`${API_BASE_URL}/chats`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        title: "Ny chat", 
-        model: selectedModel 
-      })
-    });
-    
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title;
-      if (modelSelector) {
-        modelSelector.value = selectedModel;
-      }
-      await fetchChats();
-      if (chatSelector) {
-        chatSelector.value = currentChatId;
-        await loadChat(currentChatId);
-      }
-      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-      console.log("Ny chat opprettet med ID:", currentChatId);
-      return currentChatId;
-    } else {
-      console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
-      throw new Error("Feil ved opprettelse av ny chat.");
-    }
-  } catch (error) {
-    console.error("Feil ved opprettelse av ny chat:", error);
-    currentChatId = null;
-    throw error;
-  }
 }
 
 /**
@@ -940,6 +942,32 @@ async function fetchChats() {
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
+  }
+}
+
+/**
+ * loadChat - Laster en eksisterende chat
+ */
+async function loadChat(chatId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
+    if (response.ok) {
+      const chat = await response.json();
+      currentChatId = chat.title;
+      // Oppdater modellvalg
+      selectedModel = chat.model;
+      if (modelSelector) {
+        modelSelector.value = chat.model;
+      }
+      displayChatMessages(chat.messages);
+      console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
+    } else {
+      console.error("Feil ved lasting av chat:", response.status, response.statusText);
+      alert("Feil ved lasting av chat.");
+    }
+  } catch (error) {
+    console.error("Feil ved lasting av chat:", error);
+    alert("Feil ved lasting av chat.");
   }
 }
 
