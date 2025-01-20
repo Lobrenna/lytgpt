@@ -1,4 +1,3 @@
-
 // URL til FastAPI-backenden (lokal utvikling)
 const API_BASE_URL = "http://localhost:8000";
 
@@ -195,7 +194,10 @@ async function onSendMessage() {
                 throw new Error('Kunne ikke opprette ny chat');
             }
 
-            const encodedChatId = encodeURIComponent(currentChatId);
+            // Encode the chat ID properly for URLs
+            const encodedChatId = encodeURIComponent(currentChatId.trim());
+            console.log("Sending message to chat ID:", encodedChatId);
+
             response = await fetch(`${API_BASE_URL}/chat/${encodedChatId}/messages`, {
                 method: 'POST',
                 headers: {
