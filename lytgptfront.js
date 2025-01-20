@@ -271,9 +271,23 @@ async function createNewChat() {
         }
         console.log("Oppretter ny chat med modell:", selectedModel);
         
-        // Generate a normalized chat title
-        const timestamp = new Date().toISOString().replace(/[:-]/g, '_').split('.')[0];
-        const chatTitle = `Ny_chat_${timestamp}`.replace(/ /g, '_');
+        // Generate timestamp in DDMMYY_HHMM format
+        const now = new Date();
+        const timestamp = now.toLocaleString('no', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).replace(/[/,.: ]/g, '').replace(/(\d{6})(\d{4})/, '$1_$2');
+
+        // Get initial message if available, otherwise use "ny_chat"
+        let initialTitle = chatInput && chatInput.value ? 
+            chatInput.value.trim().substring(0, 20).replace(/[^a-zA-Z0-9]/g, '_') : 
+            'ny_chat';
+        
+        const chatTitle = `${initialTitle}_${timestamp}`;
         
         const response = await fetch(`${API_BASE_URL}/chats`, {
             method: 'POST',
@@ -286,7 +300,7 @@ async function createNewChat() {
         
         if (response.ok) {
             const chat = await response.json();
-            currentChatId = chat.title.replace(/ /g, '_'); // Normalize the returned ID
+            currentChatId = chat.title; // No need to normalize since we're already using underscores
             if (modelSelector) {
                 modelSelector.value = selectedModel;
             }
@@ -315,14 +329,12 @@ async function loadChat(chatId) {
         // Rydd opp i file uploads først
         cleanupFileUploads();
         
-        // Normalize chat ID
-        const normalizedChatId = chatId.trim().replace(/ /g, '_');
-        const encodedChatId = encodeURIComponent(normalizedChatId);
+        const encodedChatId = encodeURIComponent(chatId);
         
         const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}`);
         if (response.ok) {
             const chat = await response.json();
-            currentChatId = chat.title.replace(/ /g, '_'); // Normalize the stored ID
+            currentChatId = chat.title;
             // Oppdater modellvalg
             selectedModel = chat.model;
             if (modelSelector) {
@@ -392,8 +404,7 @@ function populateChatSelector(chats) {
     chatSelector.innerHTML = '';
     chats.forEach(chat => {
         const opt = document.createElement('option');
-        const normalizedChat = chat.replace(/ /g, '_'); // Normalize chat IDs in selector
-        opt.value = (chat === "Ny chat") ? "new" : normalizedChat;
+        opt.value = chat;
         opt.text = chat;
         chatSelector.appendChild(opt);
     });
