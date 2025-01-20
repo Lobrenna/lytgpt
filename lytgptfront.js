@@ -238,23 +238,27 @@ async function createNewChat() {
         const endpoint = `${CHATS_ENDPOINT}`;
         console.log("Creating chat at endpoint:", endpoint);
         
-        // Generate timestamp in DDMMYY_HHMM format
+        // Generate timestamp in YYYY-MM-DD HH_MM_SS format to match backend
         const now = new Date();
         const timestamp = now.toLocaleString('no', {
-            day: '2-digit',
+            year: 'numeric',
             month: '2-digit',
-            year: '2-digit',
+            day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
+            second: '2-digit',
             hour12: false
-        }).replace(/[/,.: ]/g, '').replace(/(\d{6})(\d{4})/, '$1_$2');
+        }).replace(/[/]/g, '-')  // Replace slashes with dashes for date
+         .replace(/[,]/g, '')    // Remove commas
+         .replace(/[:]/g, '_');  // Replace colons with underscores for time
 
         // Get initial message if available
         let initialTitle = chatInput && chatInput.value ? 
-            chatInput.value.trim().substring(0, 20).replace(/[^a-zA-Z0-9]/g, '_') : 
+            chatInput.value.trim().substring(0, 20) : 
             'ny_chat';
         
-        const chatTitle = `${initialTitle}_${timestamp}`;
+        // Use space between title and timestamp to match backend format
+        const chatTitle = `${initialTitle} ${timestamp}`;
         
         const response = await fetch(endpoint, {
             method: 'POST',
