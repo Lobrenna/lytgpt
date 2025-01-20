@@ -396,6 +396,7 @@ async function onChatChange(e) {
   }
 }
 
+
 /**
  * onUploadFiles - Filopplasting
  */
@@ -975,6 +976,9 @@ function onModelChange(e) {
 /**
  * fetchChats - Henter eksisterende chats fra backend
  */
+/**
+ * fetchChats - Henter eksisterende chats fra backend
+ */
 async function fetchChats() {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
@@ -1001,8 +1005,8 @@ async function fetchChats() {
     // Legg til hver chat som en option
     chats.forEach(chat => {
       const option = document.createElement('option');
-      option.value = chat.id;
-      option.textContent = chat.title || chat.id;
+      option.value = chat; // Sett verdien til chat-tittelen
+      option.textContent = chat; // Sett teksten til chat-tittelen
       chatSelector.appendChild(option);
     });
     
@@ -1015,6 +1019,10 @@ async function fetchChats() {
   }
 }
 
+
+/**
+ * loadChat - Laster en eksisterende chat
+ */
 /**
  * loadChat - Laster en eksisterende chat
  */
@@ -1023,7 +1031,7 @@ async function loadChat(chatId) {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
-      currentChatId = chat.title;
+      currentChatId = chat.title; // 'chat.title' skal være den unike chat_id
       // Oppdater modellvalg
       selectedModel = chat.model;
       if (modelSelector) {
@@ -1040,6 +1048,7 @@ async function loadChat(chatId) {
     alert("Feil ved lasting av chat.");
   }
 }
+
 
 
 // Initialiser når DOM er lastet
