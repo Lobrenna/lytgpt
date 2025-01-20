@@ -905,3 +905,4 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.style.color = "#000";
   }
 });
+
