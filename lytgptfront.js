@@ -83,7 +83,61 @@ function hideSpinner(buttonElement) {
   buttonElement.disabled = false;
 }
 
+async function getDescriptiveName(userMessage, assistantResponse) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chats/namecontents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_message: userMessage,
+        assistant_response: assistantResponse,
+      }),
+    });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Feil ved generering av navn: ${errorData.detail}`);
+    }
+
+    const data = await response.json();
+    return data.name;
+  } catch (error) {
+    console.error('Feil ved hentning av beskrivende navn:', error);
+    return 'Ukjent Chat';
+  }
+}
+
+async function renameChat(chatId, newName) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/rename`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(newName),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Feil ved renaming av chat: ${errorData.detail}`);
+    }
+
+    const updatedChat = await response.json();
+    console.log(`Chat '${chatId}' ble renamet til '${updatedChat.title}'`);
+    
+    // Oppdater chat-selector
+    await fetchChats();
+    if (chatSelector) {
+      chatSelector.value = updatedChat.id;
+      await loadChat(updatedChat.id);
+    }
+  } catch (error) {
+    console.error('Feil ved renaming av chat:', error);
+    alert(`Feil ved renaming av chat: ${error.message}`);
+  }
+}
 
 /**
  * appendMessageToChat(role, htmlContent)
@@ -142,7 +196,7 @@ async function createNewChat() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        title: "Ny_chat",  // La backend generere unik ID uten mellomrom
+        title: "Ny_chat",  // Dette kan være midlertidig og blir renamet senere
         model: selectedModel 
       })
     });
@@ -202,6 +256,9 @@ async function sendMessage(chatId, message) {
 /**
  * onSendMessage - Håndterer sending av meldinger
  */
+/**
+ * onSendMessage - Håndterer sending av meldinger
+ */
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
@@ -243,94 +300,53 @@ async function onSendMessage() {
 
   try {
     let data;
-    
-    // Sjekk om vi har filer og skal bruke long-context
+    let isFirstMessage = false;
+
+    // Sjekk om dette er første meldingen i chatten
+    if (!currentChatId) {
+      isFirstMessage = true;
+      currentChatId = await createNewChat();
+    }
+
+    if (!currentChatId) {
+      throw new Error('Kunne ikke opprette ny chat');
+    }
+
     if (hasFiles) {
-      console.log("Sender request med filer til long-context endpoint");
-      
-      if (selectedModel) {
-        console.log("Legger til modell:", selectedModel);
-        formData.append('preferred_model', selectedModel);
-      }
-
-      // Debug: Vis innholdet i FormData
-      for (let pair of formData.entries()) {
-        console.log('FormData innhold:', pair[0], pair[1]);
-      }
-
-      const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      console.log("Response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Response error data:", errorData);
-        throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-      }
-
-      data = await response.json();
-      
-      // Fjern "Genererer svar..." meldingen
-      chatMessages.removeChild(chatMessages.lastChild);
-      
-      // Sjekk om chat_id er renamet
-      if (data.new_chat_id) {
-        console.log("Chat ID ble renamet til:", data.new_chat_id);
-        // Oppdater currentChatId
-        currentChatId = data.new_chat_id;
-        
-        // Oppdater chat-selector
-        await fetchChats();
-        if (chatSelector) {
-          chatSelector.value = currentChatId;
-          await loadChat(currentChatId);
-        }
-      } else {
-        // Vis modellinfo og svar
-        const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-        appendMessageToChat('system', modelInfo);
-        appendMessageToChat('assistant', data.response);
-      }
-      
-      // Tøm chat input
-      chatInput.value = '';
-      
-      // IKKE fjern file uploads her - la brukeren fjerne dem manuelt
-      
+      // Long-context handling (eksisterende logikk)
+      data = await handleLongContextSubmit();
     } else {
       // Vanlig chat uten filer
-      if (!currentChatId) {
-        currentChatId = await createNewChat();
-      }
-      
-      if (!currentChatId) {
-        throw new Error('Kunne ikke opprette ny chat');
-      }
-
       data = await sendMessage(currentChatId, message);
-
-      // Sjekk om chat_id er renamet
-      if (data.new_chat_id) {
-        console.log("Chat ID ble renamet til:", data.new_chat_id);
-        // Oppdater currentChatId
-        currentChatId = data.new_chat_id;
-        
-        // Oppdater chat-selector
-        await fetchChats();
-        if (chatSelector) {
-          chatSelector.value = currentChatId;
-          await loadChat(currentChatId);
-        }
-      } else {
-        // Vis responsen
-        appendMessageToChat('assistant', data.response);
-      }
-      
-      chatInput.value = '';
     }
+
+    // Sjekk om chat_id er renamet
+    if (data.new_chat_id) {
+      console.log("Chat ID ble renamet til:", data.new_chat_id);
+      // Oppdater currentChatId
+      currentChatId = data.new_chat_id;
+      
+      // Oppdater chat-selector
+      await fetchChats();
+      if (chatSelector) {
+        chatSelector.value = currentChatId;
+        await loadChat(currentChatId);
+      }
+    } else {
+      // Vis responsen
+      appendMessageToChat('assistant', data.response);
+    }
+
+    // Hvis det er første melding, generer og sett chat-navn
+    if (isFirstMessage) {
+      const userMessage = message;
+      const assistantResponse = data.response;
+      const descriptiveName = await getDescriptiveName(userMessage, assistantResponse);
+      await renameChat(currentChatId, descriptiveName);
+    }
+
+    // Tøm chat input
+    chatInput.value = '';
 
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
@@ -342,6 +358,7 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
 
 
 // Hjelpefunksjon for å formatere filstørrelse
