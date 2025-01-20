@@ -295,18 +295,6 @@ async function onSendMessage() {
   }
 }
 
-// Fjern duplisert `sendMessage` funksjon her
-
-// Fjerne dupliserte definisjoner av `onSendMessage`
-/* 
-  Du hadde to definisjoner av `onSendMessage` i din kode. Vi beholder den siste og fjerner den første.
-  Pass også på at alle andre dupliserte funksjoner fjernes.
-*/
-
-// ... (Resterende del av frontend-koden)
-
-// Fortsetter med resten av frontend-koden uten dupliseringer
-
 /**
  * appendMessageToChat(role, htmlContent)
  *  - Oppretter en <div> med klasser 'chat-message' + role
@@ -929,11 +917,73 @@ function updateFileList(files) {
 }
 
 /**
- * handleLongContextSubmit - Håndterer sending av long-context meldinger
+ * formatFileSize - Hjelpefunksjon for å formatere filstørrelse
  */
-async function handleLongContextSubmit() {
-  // Denne funksjonen er ikke lenger nødvendig hvis vi håndterer long-context direkte i onSendMessage
-  // Du kan fjerne denne hvis du ikke bruker den andre `onSendMessage` funksjonen
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * setupEventListeners - Setter opp alle nødvendige event listeners
+ */
+function setupEventListeners() {
+  console.log("Setting up event listeners...");
+  
+  if (modelSelector) {
+    modelSelector.addEventListener('change', onModelChange);
+  }
+  if (chatSelector) {
+    chatSelector.addEventListener('change', onChatChange);
+  }
+  if (sendButton) {
+    sendButton.addEventListener('click', onSendMessage);
+    sendButton.setAttribute('type', 'button');
+  }
+  if (uploadFilesButton) {
+    uploadFilesButton.addEventListener('click', onUploadFiles);
+  }
+  if (setUrlButton) {
+    setUrlButton.addEventListener('click', onSetUrl);
+  }
+  if (newChatButton) {
+    newChatButton.addEventListener('click', onNewChat);
+  }
+  if (deleteChatButton) {
+    deleteChatButton.addEventListener('click', onDeleteChat);
+  }
+  if (deleteConfirmYes) {
+    deleteConfirmYes.addEventListener('click', onConfirmDelete);
+  }
+  if (deleteConfirmNo) {
+    deleteConfirmNo.addEventListener('click', onCancelDelete);
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        onSendMessage();
+      }
+    });
+  }
+
+  console.log("Event listeners setup complete");
+}
+
+/**
+ * updateChatSelector - Oppdaterer chat-selector med ny chat-id
+ * @param {string} newChatId - Den nye chat-id-en som skal settes
+ */
+async function updateChatSelector(newChatId) {
+  await fetchChats();
+  if (chatSelector) {
+    chatSelector.value = newChatId;
+    await loadChat(newChatId);
+  }
 }
 
 /**
@@ -1055,18 +1105,8 @@ function setupEventListeners() {
 }
 
 /**
- * updateChatSelector - Oppdaterer chat-selector med ny chat-id
- * @param {string} newChatId - Den nye chat-id-en som skal settes
+ * Initialiser når DOM er lastet
  */
-async function updateChatSelector(newChatId) {
-  await fetchChats();
-  if (chatSelector) {
-    chatSelector.value = newChatId;
-    await loadChat(newChatId);
-  }
-}
-
-// Initialiser når DOM er lastet
 document.addEventListener('DOMContentLoaded', () => {
   console.log("DOMContentLoaded triggered");
   
