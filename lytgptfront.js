@@ -251,6 +251,7 @@ function clearChatMessages() {
  */
 async function createNewChat() {
     try {
+        // Ensure we have a valid model selected
         if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
             selectedModel = modelSelector.options[0].value;
         }
@@ -260,36 +261,54 @@ async function createNewChat() {
         console.log("Creating chat at endpoint:", endpoint);
         
         // Get initial message if available
-        let initialTitle = chatInput && chatInput.value ? 
-            chatInput.value.trim().substring(0, 20).replace(/\s+/g, '_') : 
-            'ny_chat';
+        let initialTitle = 'ny_chat';
+        if (chatInput && chatInput.value) {
+            // Sanitize the title: remove special characters and replace spaces with underscores
+            initialTitle = chatInput.value
+                .trim()
+                .substring(0, 20)
+                .replace(/[^a-zA-Z0-9æøåÆØÅ\s-]/g, '')
+                .replace(/\s+/g, '_');
+        }
             
         // Generate timestamp in YYYYMMDD_HHMMSS format
         const now = new Date();
-        const timestamp = now.toISOString()
-            .replace(/[-:T]/g, '_')  // Replace dash, colon, and T with underscore
-            .split('.')[0];          // Remove milliseconds
+        const timestamp = now.getFullYear() +
+            String(now.getMonth() + 1).padStart(2, '0') +
+            String(now.getDate()).padStart(2, '0') + '_' +
+            String(now.getHours()).padStart(2, '0') +
+            String(now.getMinutes()).padStart(2, '0') +
+            String(now.getSeconds()).padStart(2, '0');
         
         // Create chat title with underscore format
         const chatTitle = `${initialTitle}_${timestamp}`;
         
+        console.log("Sending create chat request with title:", chatTitle, "and model:", selectedModel);
+        
+        const requestBody = {
+            title: chatTitle,
+            initial_model: selectedModel  // Changed from 'model' to 'initial_model'
+        };
+        
+        console.log("Request body:", requestBody);  // Debug log
+        
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title: chatTitle, 
-                model: selectedModel 
-            })
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({}));
             console.error("Error creating chat:", errorData);
             throw new Error(`Feil ved opprettelse av chat: ${response.status} ${response.statusText}`);
         }
         
         const chat = await response.json();
-        currentChatId = chatTitle;  // Use our formatted title
+        currentChatId = chatTitle;
         
         if (modelSelector) {
             modelSelector.value = selectedModel;
