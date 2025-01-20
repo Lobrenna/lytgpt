@@ -824,6 +824,48 @@ async function handleNewChat() {
 }
 
 /**
+ * fetchModels - Henter tilgjengelige modeller fra backend
+ */
+async function fetchModels() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/models`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const models = await response.json();
+    
+    if (modelSelector) {
+      // Tøm eksisterende options
+      modelSelector.innerHTML = '';
+      
+      // Legg til en tom option først
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Velg modell';
+      modelSelector.appendChild(defaultOption);
+      
+      // Legg til hver modell som en option
+      models.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.id;
+        option.textContent = model.name || model.id;
+        modelSelector.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Feil ved henting av modeller:', error);
+  }
+}
+
+/**
+ * onModelChange - Håndterer endring av modell
+ */
+function onModelChange(e) {
+  selectedModel = e.target.value;
+  console.log('Valgt modell:', selectedModel);
+}
+
+/**
  * DOMContentLoaded => fetchModels, fetchChats, setupEventListeners
  */
 document.addEventListener('DOMContentLoaded', () => {
