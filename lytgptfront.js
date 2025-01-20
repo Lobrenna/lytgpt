@@ -111,49 +111,34 @@ function appendMessageToChat(role, htmlContent) {
  */
 async function createNewChat() {
   try {
-    if ((!selectedModel || selectedModel === '') && modelSelector && modelSelector.options.length > 0) {
-      selectedModel = modelSelector.options[0].value;
-    }
     console.log("Oppretter ny chat med modell:", selectedModel);
-    
-    const uniqueChatId = `Chat_${new Date().getTime()}`; // Alternativ måte å generere unik ID
-    // Eller la backend generere den unike ID-en
 
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        title: uniqueChatId, 
+        title: "Ny chat",  // La backend generere unik ID
         model: selectedModel 
       })
     });
-    
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title; // Sett currentChatId til den unike ID-en
-      if (modelSelector) {
-        modelSelector.value = selectedModel;
-      }
-      await fetchChats();
-      if (chatSelector) {
-        chatSelector.value = currentChatId;
-        await loadChat(currentChatId);
-      }
-      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-      console.log("Ny chat opprettet med ID:", currentChatId);
-      return currentChatId;
-    } else {
+
+    if (!response.ok) {
       console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
       throw new Error("Feil ved opprettelse av ny chat.");
     }
+
+    const chatData = await response.json();
+    return chatData.title; // Bruk backend's genererte title (chat_id)
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
-    currentChatId = null;
     throw error;
   }
 }
 
 
+/**
+ * sendMessage - Hjelpefunksjon for å sende meldinger til backend
+ */
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
  */
@@ -174,7 +159,7 @@ async function sendMessage(chatId, message, retryCount = 3) {
     },
     body: JSON.stringify({
       message: message,
-      preferred_model: selectedModel
+      model: selectedModel  // Bytt fra 'preferred_model' til 'model'
     })
   });
 
@@ -185,6 +170,7 @@ async function sendMessage(chatId, message, retryCount = 3) {
 
   return await response.json();
 }
+
 
 /**
  * onSendMessage - Håndterer sending av meldinger
@@ -345,54 +331,49 @@ function clearChatMessages() {
 }
 
 /**
- * createNewChatId - Genererer en ny URL-vennlig chat ID
- * @returns {string} Den genererte chat ID-en
+ * onNewChat - Håndterer klikk på new-chat-button
  */
-function createNewChatId() {
-  const now = new Date();
-  return `Chat_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-}
-
 /**
  * onNewChat - Håndterer klikk på new-chat-button
  */
 async function onNewChat() {
   try {
-    const chatId = createNewChatId();
-    
+    console.log("Oppretter ny chat med modell:", selectedModel);
+
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: chatId,
-        model: selectedModel || "gpt-4o"
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        title: "Ny chat",  // La backend generere unik ID
+        preferred_model: selectedModel 
       })
     });
-
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const chatData = await response.json();
-    currentChatId = chatId;
-
+    currentChatId = chatData.title; // Bruk backend's genererte title
+    
     await fetchChats();
     if (chatSelector) {
       chatSelector.value = currentChatId;
+      await loadChat(currentChatId);
     }
-
+    
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
 
+    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     console.log("Ny chat opprettet med ID:", currentChatId);
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
   }
 }
+
 
 async function onChatChange(e) {
   const chosen = e.target.value;
@@ -407,11 +388,22 @@ async function onChatChange(e) {
 /**
  * onUploadFiles - Filopplasting
  */
+/**
+ * onUploadFiles - Filopplasting
+ */
 async function onUploadFiles() {
   console.log("Upload-knapp klikket");
+  
+  // Hvis det ikke finnes en aktuell chat, opprett en ny chat
   if (!currentChatId) {
-    const chatId = createNewChatId();
-    await createNewChat();
+    try {
+      currentChatId = await createNewChat();
+      console.log("Ny chat opprettet med ID:", currentChatId);
+    } catch (error) {
+      console.error("Feil ved opprettelse av ny chat:", error);
+      alert("Feil ved opprettelse av ny chat.");
+      return;
+    }
   }
 
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
@@ -457,6 +449,7 @@ async function onUploadFiles() {
     alert("Feil ved opplasting av filer.");
   }
 }
+
 
 /**
  * onSetUrl - Legg til URL-kontekst
@@ -986,6 +979,9 @@ function onModelChange(e) {
 /**
  * fetchChats - Henter eksisterende chats fra backend
  */
+/**
+ * fetchChats - Henter eksisterende chats fra backend
+ */
 async function fetchChats() {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
@@ -1012,19 +1008,20 @@ async function fetchChats() {
     // Legg til hver chat som en option
     chats.forEach(chat => {
       const option = document.createElement('option');
-      option.value = chat; // Sett verdien til chat-tittelen
+      option.value = chat; // Sett verdien til chat-tittelen (unik ID)
       option.textContent = chat; // Sett teksten til chat-tittelen
       chatSelector.appendChild(option);
     });
     
     // Sett current chat hvis den finnes i listen
-    if (currentChatId) {
+    if (currentChatId && chats.includes(currentChatId)) {
       chatSelector.value = currentChatId;
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
   }
 }
+
 
 
 /**
