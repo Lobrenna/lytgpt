@@ -109,35 +109,6 @@ async function getDescriptiveName(userMessage, assistantResponse) {
   }
 }
 
-async function renameChat(chatId, newName) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/rename`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(newName),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Feil ved renaming av chat: ${errorData.detail}`);
-    }
-
-    const updatedChat = await response.json();
-    console.log(`Chat '${chatId}' ble renamet til '${updatedChat.title}'`);
-    
-    // Oppdater chat-selector
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = updatedChat.id;
-      await loadChat(updatedChat.id);
-    }
-  } catch (error) {
-    console.error('Feil ved renaming av chat:', error);
-    alert(`Feil ved renaming av chat: ${error.message}`);
-  }
-}
 
 /**
  * appendMessageToChat(role, htmlContent)
@@ -184,10 +155,6 @@ function appendMessageToChat(role, htmlContent) {
   });
 }
 
-/**
- * createNewChat - Opprett en ny chat i backend
- * @returns {string} - Den unike chat ID fra backend
- */
 async function createNewChat() {
   try {
     console.log("Oppretter ny chat med modell:", selectedModel);
@@ -213,6 +180,7 @@ async function createNewChat() {
     throw error;
   }
 }
+
 
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
@@ -253,44 +221,38 @@ async function sendMessage(chatId, message) {
  * onSendMessage - Håndterer sending av meldinger
  */
 
-/**
- * onSendMessage - Håndterer sending av meldinger
- */
-/**
- * onSendMessage - Håndterer sending av meldinger
- */
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  
+
   console.log("Alle file inputs funnet:", fileInputs.length);
 
   // Samle alle filer som er valgt
   let hasFiles = false;
   const formData = new FormData();
   formData.append('message', message);
-  
+
   // Samle alle filer fra inputs som har en fil valgt
   let fileCount = 0;
   fileInputs.forEach((input) => {
     const uploadDiv = input.closest('.w-file-upload');
     const successView = uploadDiv?.querySelector('.w-file-upload-success');
-    
+
     // Sjekk om filen er valgt (success view er synlig)
     if (input.files && 
         input.files[0] && 
         successView && 
         !successView.classList.contains('w-hidden')) {
-      
+
       fileCount++;
       console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
       formData.append('files', input.files[0]);
       hasFiles = true;
     }
   });
-  
+
   // Vis brukerens melding
   appendMessageToChat('user', message);
   appendMessageToChat('assistant', 'Genererer svar...');
@@ -325,7 +287,7 @@ async function onSendMessage() {
       console.log("Chat ID ble renamet til:", data.new_chat_id);
       // Oppdater currentChatId
       currentChatId = data.new_chat_id;
-      
+
       // Oppdater chat-selector
       await fetchChats();
       if (chatSelector) {
@@ -337,13 +299,16 @@ async function onSendMessage() {
       appendMessageToChat('assistant', data.response);
     }
 
-    // Hvis det er første melding, generer og sett chat-navn
+    // Hvis det er første melding, generer og sett chat-navn via backend
+    // Fjern denne delen siden backend allerede håndterer renaming
+    /*
     if (isFirstMessage) {
       const userMessage = message;
       const assistantResponse = data.response;
       const descriptiveName = await getDescriptiveName(userMessage, assistantResponse);
       await renameChat(currentChatId, descriptiveName);
     }
+    */
 
     // Tøm chat input
     chatInput.value = '';
@@ -358,6 +323,7 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
 
 
 
@@ -617,64 +583,7 @@ function setupEventListeners() {
   console.log("Event listeners setup complete");
 }
 
-/**
- * fetchModels - Henter tilgjengelige modeller fra backend
- */
-async function fetchModels() {
-  try {
-    console.log("Starter henting av modeller...");
-    const response = await fetch(`${API_BASE_URL}/models`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const models = await response.json();
-    console.log("Mottatte modeller:", models);
-    
-    // Sjekk at vi faktisk har modelSelector
-    if (!modelSelector) {
-      console.error("modelSelector er ikke definert. Prøver å finne element direkte.");
-      const selector = document.getElementById('model-selector');
-      if (!selector) {
-        console.error("Fant ikke model-selector element i DOM");
-        return;
-      }
-      // Hvis vi fant elementet, oppdater global variabel
-      window.modelSelector = selector;
-    }
-    
-    // Tøm eksisterende options
-    modelSelector.innerHTML = '';
-    
-    // Legg til en tom option først
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Velg modell';
-    modelSelector.appendChild(defaultOption);
-    
-    // Legg til hver modell som en option
-    models.forEach(model => {
-      console.log("Legger til modell:", model);
-      const option = document.createElement('option');
-      option.value = model;
-      option.textContent = model;
-      modelSelector.appendChild(option);
-    });
 
-    // Sett selectedModel hvis den ikke er satt
-    if (!selectedModel && models.length > 0) {
-      selectedModel = models[0];
-      modelSelector.value = selectedModel;
-      console.log("Satt standard modell til:", selectedModel);
-    }
-    
-    console.log("Ferdig med å populere model-selector");
-  } catch (error) {
-    console.error('Feil ved henting av modeller:', error);
-    console.error('Full error:', error.stack);
-  }
-}
 
 /**
  * onModelChange - Håndterer endring av modell
@@ -684,59 +593,12 @@ function onModelChange(e) {
   console.log('Valgt modell:', selectedModel);
 }
 
-/**
- * fetchChats - Henter eksisterende chats fra backend
- */
-async function fetchChats() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const chats = await response.json();
-    
-    if (!chatSelector) {
-      console.error("Chat selector not found");
-      return;
-    }
-    
-    // Tøm eksisterende options
-    chatSelector.innerHTML = '';
-    
-    // Legg til "Ny chat" option
-    const newChatOption = document.createElement('option');
-    newChatOption.value = "new";
-    newChatOption.textContent = "Ny chat";
-    chatSelector.appendChild(newChatOption);
-    
-    // Legg til hver chat som en option
-    chats.forEach(chat => {
-      const option = document.createElement('option');
-      option.value = chat; // Sett verdien til chat-tittelen (unik ID)
-      option.textContent = chat; // Sett teksten til chat-tittelen
-      chatSelector.appendChild(option);
-    });
-    
-    // Sett current chat hvis den finnes i listen
-    if (currentChatId && chats.includes(currentChatId)) {
-      chatSelector.value = currentChatId;
-    }
-  } catch (error) {
-    console.error('Feil ved henting av chats:', error);
-  }
-}
-
-/**
- * loadChat - Laster en eksisterende chat
- * @param {string} chatId - ID til chatten som skal lastes
- */
 async function loadChat(chatId) {
   try {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
-      currentChatId = chat.title; // 'chat.title' skal være den unike chat_id
+      currentChatId = chat.title; // 'chat.title' er den unike chat_id
       // Oppdater modellvalg
       selectedModel = chat.model;
       if (modelSelector) {
@@ -753,6 +615,7 @@ async function loadChat(chatId) {
     alert("Feil ved lasting av chat.");
   }
 }
+
 
 /**
  * handleFileSelection - Håndterer når en fil velges
@@ -1099,83 +962,6 @@ async function fetchModels() {
   }
 }
 
-/**
- * fetchChats - Henter eksisterende chats fra backend
- */
-async function fetchChats() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const chats = await response.json();
-    
-    if (!chatSelector) {
-      console.error("Chat selector not found");
-      return;
-    }
-    
-    // Tøm eksisterende options
-    chatSelector.innerHTML = '';
-    
-    // Legg til "Ny chat" option
-    const newChatOption = document.createElement('option');
-    newChatOption.value = "new";
-    newChatOption.textContent = "Ny chat";
-    chatSelector.appendChild(newChatOption);
-    
-    // Legg til hver chat som en option
-    chats.forEach(chat => {
-      const option = document.createElement('option');
-      option.value = chat; // Sett verdien til chat-tittelen (unik ID)
-      option.textContent = chat; // Sett teksten til chat-tittelen
-      chatSelector.appendChild(option);
-    });
-    
-    // Sett current chat hvis den finnes i listen
-    if (currentChatId && chats.includes(currentChatId)) {
-      chatSelector.value = currentChatId;
-    }
-  } catch (error) {
-    console.error('Feil ved henting av chats:', error);
-  }
-}
-
-/**
- * loadChat - Laster en eksisterende chat
- * @param {string} chatId - ID til chatten som skal lastes
- */
-async function loadChat(chatId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title; // 'chat.title' skal være den unike chat_id
-      // Oppdater modellvalg
-      selectedModel = chat.model;
-      if (modelSelector) {
-        modelSelector.value = chat.model;
-      }
-      displayChatMessages(chat.messages);
-      console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-    } else {
-      console.error("Feil ved lasting av chat:", response.status, response.statusText);
-      alert("Feil ved lasting av chat.");
-    }
-  } catch (error) {
-    console.error("Feil ved lasting av chat:", error);
-    alert("Feil ved lasting av chat.");
-  }
-}
-
-// Event listeners for delete confirmation
-if (deleteConfirmYes) {
-  deleteConfirmYes.addEventListener('click', onConfirmDelete);
-}
-if (deleteConfirmNo) {
-  deleteConfirmNo.addEventListener('click', onCancelDelete);
-}
 
 /**
  * onConfirmDelete - Bekrefter sletting av chat
@@ -1408,95 +1194,7 @@ function setupEventListeners() {
   console.log("Event listeners setup complete");
 }
 
-/**
- * loadChat - Laster en eksisterende chat
- * @param {string} chatId - ID til chatten som skal lastes
- */
-async function loadChat(chatId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title; // 'chat.title' skal være den unike chat_id
-      // Oppdater modellvalg
-      selectedModel = chat.model;
-      if (modelSelector) {
-        modelSelector.value = chat.model;
-      }
-      displayChatMessages(chat.messages);
-      console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
-    } else {
-      console.error("Feil ved lasting av chat:", response.status, response.statusText);
-      alert("Feil ved lasting av chat.");
-    }
-  } catch (error) {
-    console.error("Feil ved lasting av chat:", error);
-    alert("Feil ved lasting av chat.");
-  }
-}
 
-/**
- * fetchModels - Henter tilgjengelige modeller fra backend
- */
-async function fetchModels() {
-  try {
-    console.log("Starter henting av modeller...");
-    const response = await fetch(`${API_BASE_URL}/models`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const models = await response.json();
-    console.log("Mottatte modeller:", models);
-    
-    // Sjekk at vi faktisk har modelSelector
-    if (!modelSelector) {
-      console.error("modelSelector er ikke definert. Prøver å finne element direkte.");
-      const selector = document.getElementById('model-selector');
-      if (!selector) {
-        console.error("Fant ikke model-selector element i DOM");
-        return;
-      }
-      // Hvis vi fant elementet, oppdater global variabel
-      window.modelSelector = selector;
-    }
-    
-    // Tøm eksisterende options
-    modelSelector.innerHTML = '';
-    
-    // Legg til en tom option først
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Velg modell';
-    modelSelector.appendChild(defaultOption);
-    
-    // Legg til hver modell som en option
-    models.forEach(model => {
-      console.log("Legger til modell:", model);
-      const option = document.createElement('option');
-      option.value = model;
-      option.textContent = model;
-      modelSelector.appendChild(option);
-    });
-
-    // Sett selectedModel hvis den ikke er satt
-    if (!selectedModel && models.length > 0) {
-      selectedModel = models[0];
-      modelSelector.value = selectedModel;
-      console.log("Satt standard modell til:", selectedModel);
-    }
-    
-    console.log("Ferdig med å populere model-selector");
-  } catch (error) {
-    console.error('Feil ved henting av modeller:', error);
-    console.error('Full error:', error.stack);
-  }
-}
-
-/**
- * fetchChats - Henter eksisterende chats fra backend
- */
 async function fetchChats() {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
@@ -1531,11 +1229,13 @@ async function fetchChats() {
     // Sett current chat hvis den finnes i listen
     if (currentChatId && chats.includes(currentChatId)) {
       chatSelector.value = currentChatId;
+      await loadChat(currentChatId);
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
   }
 }
+
 
 /**
  * displayChatMessages
