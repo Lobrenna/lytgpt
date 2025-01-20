@@ -273,7 +273,7 @@ async function createNewChat() {
         const response = await fetch(`${API_BASE_URL}/chats`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: "Ny chat", model: selectedModel })
+            body: JSON.stringify({ title: "Ny_chat", model: selectedModel })
         });
         if (response.ok) {
             const chat = await response.json();
@@ -306,7 +306,11 @@ async function loadChat(chatId) {
         // Rydd opp i file uploads først
         cleanupFileUploads();
         
-        const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
+        // Replace spaces with underscores before encoding
+        const normalizedChatId = chatId.trim().replace(/ /g, '_');
+        const encodedChatId = encodeURIComponent(normalizedChatId);
+        
+        const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}`);
         if (response.ok) {
             const chat = await response.json();
             currentChatId = chat.title;
@@ -316,7 +320,7 @@ async function loadChat(chatId) {
                 modelSelector.value = chat.model;
             }
             displayChatMessages(chat.messages);
-            console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
+            console.log("Lastet chat med ID:", currentChatId);
         } else {
             console.error("Feil ved lasting av chat:", response.status, response.statusText);
             alert("Feil ved lasting av chat.");
