@@ -847,10 +847,16 @@ async function fetchModels() {
       // Legg til hver modell som en option
       models.forEach(model => {
         const option = document.createElement('option');
-        option.value = model.id;
-        option.textContent = model.name || model.id;
+        option.value = model;  // model er nå en string
+        option.textContent = model;  // vis modellnavnet direkte
         modelSelector.appendChild(option);
       });
+
+      // Sett selectedModel hvis den ikke er satt
+      if (!selectedModel && models.length > 0) {
+        selectedModel = models[0];
+        modelSelector.value = selectedModel;
+      }
     }
   } catch (error) {
     console.error('Feil ved henting av modeller:', error);
