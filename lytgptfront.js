@@ -48,6 +48,43 @@ function renderMarkdown(markdownText) {
   return marked.parse(markdownText);
 }
 
+
+/**
+ * showSpinner - Viser en spinner og en melding på en knapp
+ * @param {HTMLElement} buttonElement - Knappen hvor spinneren skal vises
+ * @param {string} message - Meldingen som skal vises ved siden av spinneren
+ */
+function showSpinner(buttonElement, message) {
+  if (!buttonElement) return;
+
+  // Lagre original innhold
+  buttonElement.dataset.originalText = buttonElement.innerHTML;
+
+  // Sett spinner og melding
+  buttonElement.innerHTML = `
+    <span class="spinner"></span>${message}
+  `;
+
+  // Deaktiver knappen
+  buttonElement.disabled = true;
+}
+
+/**
+ * hideSpinner - Skjuler spinneren og gjenoppretter knappens opprinnelige innhold
+ * @param {HTMLElement} buttonElement - Knappen hvor spinneren skal skjules
+ */
+function hideSpinner(buttonElement) {
+  if (!buttonElement) return;
+
+  // Gjenopprett original innhold
+  buttonElement.innerHTML = buttonElement.dataset.originalText || '';
+
+  // Aktiver knappen
+  buttonElement.disabled = false;
+}
+
+
+
 /**
  * appendMessageToChat(role, htmlContent)
  *  - Oppretter en <div> med klasser 'chat-message' + role
@@ -161,6 +198,10 @@ async function sendMessage(chatId, message) {
 /**
  * onSendMessage - Håndterer sending av meldinger
  */
+
+/**
+ * onSendMessage - Håndterer sending av meldinger
+ */
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
@@ -168,7 +209,7 @@ async function onSendMessage() {
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
   
   console.log("Alle file inputs funnet:", fileInputs.length);
-  
+
   // Samle alle filer som er valgt
   let hasFiles = false;
   const formData = new FormData();
@@ -196,6 +237,9 @@ async function onSendMessage() {
   // Vis brukerens melding
   appendMessageToChat('user', message);
   appendMessageToChat('assistant', 'Genererer svar...');
+
+  // Spinner-funksjonalitet: Vis spinner på sendButton
+  showSpinner(sendButton, 'Sender...');
 
   try {
     let data;
@@ -293,8 +337,12 @@ async function onSendMessage() {
     console.error('Full error object:', error);
     chatMessages.removeChild(chatMessages.lastChild);
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+  } finally {
+    // Spinner-funksjonalitet: Skjul spinner på sendButton
+    hideSpinner(sendButton);
   }
 }
+
 
 // Hjelpefunksjon for å formatere filstørrelse
 function formatFileSize(bytes) {
@@ -330,9 +378,15 @@ function clearChatMessages() {
 /**
  * onNewChat - Håndterer klikk på new-chat-button
  */
+/**
+ * onNewChat - Håndterer klikk på new-chat-button
+ */
 async function onNewChat() {
   try {
     console.log("Oppretter ny chat med modell:", selectedModel);
+
+    // Spinner-funksjonalitet: Vis spinner på newChatButton
+    showSpinner(newChatButton, 'Oppretter ny chat...');
 
     const chatId = await createNewChat();
     currentChatId = chatId; // Sett currentChatId til den unike ID-en
@@ -352,23 +406,24 @@ async function onNewChat() {
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
+  } finally {
+    // Spinner-funksjonalitet: Skjul spinner på newChatButton
+    hideSpinner(newChatButton);
   }
 }
 
-async function onChatChange(e) {
-  const chosen = e.target.value;
-  if (chosen === "new") {
-    await onNewChat();
-  } else {
-    await loadChat(chosen);
-  }
-}
 
+/**
+ * onUploadFiles - Filopplasting
+ */
 /**
  * onUploadFiles - Filopplasting
  */
 async function onUploadFiles() {
   console.log("Upload-knapp klikket");
+  
+  // Spinner-funksjonalitet: Vis spinner på uploadFilesButton
+  showSpinner(uploadFilesButton, 'Laster opp filer...');
   
   // Hvis det ikke finnes en aktuell chat, opprett en ny chat
   if (!currentChatId) {
@@ -378,12 +433,16 @@ async function onUploadFiles() {
     } catch (error) {
       console.error("Feil ved opprettelse av ny chat:", error);
       alert("Feil ved opprettelse av ny chat.");
+      hideSpinner(uploadFilesButton); // Skjul spinner ved feil
       return;
     }
   }
 
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  if (!fileInputs || fileInputs.length === 0) return;
+  if (!fileInputs || fileInputs.length === 0) {
+    hideSpinner(uploadFilesButton); // Skjul spinner hvis ingen file inputs
+    return;
+  }
 
   let hasFiles = false;
   const formData = new FormData();
@@ -397,6 +456,7 @@ async function onUploadFiles() {
 
   if (!hasFiles) {
     alert("Vennligst velg filer å laste opp.");
+    hideSpinner(uploadFilesButton); // Skjul spinner hvis ingen filer
     return;
   }
 
@@ -410,7 +470,7 @@ async function onUploadFiles() {
     if (!resp.ok) {
       console.error("Feil ved opplasting av filer:", resp.status, resp.statusText);
       alert("Feil ved opplasting av filer.");
-      return;
+      throw new Error('Feil ved opplasting av filer.');
     }
     const data = await resp.json();
     console.log("Respons fra server:", data);
@@ -423,53 +483,12 @@ async function onUploadFiles() {
   } catch (error) {
     console.error("Feil ved opplasting av filer:", error);
     alert("Feil ved opplasting av filer.");
+  } finally {
+    // Spinner-funksjonalitet: Skjul spinner på uploadFilesButton uansett utfallet
+    hideSpinner(uploadFilesButton);
   }
 }
 
-/**
- * onSetUrl - Legg til URL-kontekst
- */
-async function onSetUrl() {
-  if (!currentChatId) {
-    try {
-      currentChatId = await createNewChat();
-      console.log("Ny chat opprettet med ID:", currentChatId);
-    } catch (error) {
-      console.error("Feil ved opprettelse av ny chat:", error);
-      alert("Feil ved opprettelse av ny chat.");
-      return;
-    }
-  }
-
-  const url = urlInput.value.trim();
-  const maxDepth = 1; // Juster etter behov
-  if (!url) {
-    alert("Vennligst skriv inn en URL.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('url', url);
-  formData.append('max_depth', maxDepth);
-
-  try {
-    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
-      method: 'POST',
-      body: formData
-    });
-    if (!resp.ok) {
-      console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
-      alert("Feil ved innstilling av URL.");
-      return;
-    }
-    const data = await resp.json();
-    alert(data.message);
-    urlInput.value = '';
-  } catch (error) {
-    console.error("Feil ved innstilling av URL:", error);
-    alert("Feil ved innstilling av URL.");
-  }
-}
 
 /**
  * onDeleteChat - Håndterer sletting av chat med bekreftelse
@@ -489,6 +508,9 @@ function onDeleteChat() {
  * onConfirmDelete - Bekrefter sletting av chat
  */
 async function onConfirmDelete() {
+  // Spinner-funksjonalitet: Vis spinner på deleteConfirmYes-knappen
+  showSpinner(deleteConfirmYes, 'Sletter...');
+
   try {
     const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}`, {
       method: 'DELETE'
@@ -496,7 +518,7 @@ async function onConfirmDelete() {
     if (!resp.ok) {
       console.error("Feil ved sletting av chat:", resp.status, resp.statusText);
       alert("Feil ved sletting av chat.");
-      return;
+      throw new Error('Feil ved sletting av chat.');
     }
     const data = await resp.json();
     alert(data.message);
@@ -514,8 +536,12 @@ async function onConfirmDelete() {
   } catch (error) {
     console.error("Feil ved sletting av chat:", error);
     alert("Feil ved sletting av chat.");
+  } finally {
+    // Spinner-funksjonalitet: Skjul spinner på deleteConfirmYes-knappen uansett utfallet
+    hideSpinner(deleteConfirmYes);
   }
 }
+
 
 /**
  * onCancelDelete - Avbryter sletting av chat
@@ -1302,6 +1328,7 @@ async function handleLongContextSubmit() {
   }
 }
 
+
 /**
  * updateFileList - Viser en liste av opplastede filer
  */
@@ -1549,6 +1576,60 @@ async function onChatChange(e) {
     await loadChat(chosen);
   }
 }
+
+/**
+ * onSetUrl - Legg til URL-kontekst
+ */
+async function onSetUrl() {
+  // Spinner-funksjonalitet: Vis spinner på setUrlButton
+  showSpinner(setUrlButton, 'Henter...');
+
+  if (!currentChatId) {
+    try {
+      currentChatId = await createNewChat();
+      console.log("Ny chat opprettet med ID:", currentChatId);
+    } catch (error) {
+      console.error("Feil ved opprettelse av ny chat:", error);
+      alert("Feil ved opprettelse av ny chat.");
+      hideSpinner(setUrlButton); // Skjul spinner ved feil
+      return;
+    }
+  }
+
+  const url = urlInput.value.trim();
+  const maxDepth = 1; // Juster etter behov
+  if (!url) {
+    alert("Vennligst skriv inn en URL.");
+    hideSpinner(setUrlButton); // Skjul spinner hvis ingen URL
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('url', url);
+  formData.append('max_depth', maxDepth);
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!resp.ok) {
+      console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
+      alert("Feil ved innstilling av URL.");
+      throw new Error('Feil ved innstilling av URL.');
+    }
+    const data = await resp.json();
+    alert(data.message);
+    urlInput.value = '';
+  } catch (error) {
+    console.error("Feil ved innstilling av URL:", error);
+    alert("Feil ved innstilling av URL.");
+  } finally {
+    // Spinner-funksjonalitet: Skjul spinner på setUrlButton uansett utfallet
+    hideSpinner(setUrlButton);
+  }
+}
+
 
 /**
  * onSendMessage - Håndterer sending av meldinger
