@@ -112,7 +112,6 @@ async function sendMessage(chatId, message) {
   console.log("Debug - Chat ID før sending:", chatId);
   console.log("Debug - Current chat ID:", currentChatId);
   
-  // Bruk currentChatId hvis chatId ikke er gyldig
   const actualChatId = chatId || currentChatId;
   
   const url = `${API_BASE_URL}/chats/${encodeURIComponent(actualChatId)}/messages`;
