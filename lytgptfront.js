@@ -590,12 +590,6 @@ function setupEventListeners() {
     longContextInput.addEventListener('change', handleFileSelection);
   }
 
-  // Legg til event listener for file selection på det første file input elementet
-  const initialFileInput = document.querySelector('.w-file-upload-input');
-  if (initialFileInput) {
-    initialFileInput.addEventListener('change', handleFileSelection);
-  }
-
   // Initialiser Webflow's file upload funksjonalitet
   window.Webflow && window.Webflow.destroy();
   window.Webflow && window.Webflow.ready();
@@ -606,8 +600,11 @@ function setupEventListeners() {
  * handleFileSelection - Håndterer når en fil velges
  */
 function handleFileSelection(event) {
-  console.log("File selection triggered");
-
+  console.log("File selection triggered for input:", event.target.id);
+  
+  // Prevent multiple triggers
+  event.stopPropagation();
+  
   const fileUploadDiv = event.target.closest('.w-file-upload');
   if (!fileUploadDiv) {
     console.log("Fant ikke fileUploadDiv");
