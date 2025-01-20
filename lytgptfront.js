@@ -828,38 +828,57 @@ async function handleNewChat() {
  */
 async function fetchModels() {
   try {
+    console.log("Starter henting av modeller...");
     const response = await fetch(`${API_BASE_URL}/models`);
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const models = await response.json();
     
-    if (modelSelector) {
-      // Tøm eksisterende options
-      modelSelector.innerHTML = '';
-      
-      // Legg til en tom option først
-      const defaultOption = document.createElement('option');
-      defaultOption.value = '';
-      defaultOption.textContent = 'Velg modell';
-      modelSelector.appendChild(defaultOption);
-      
-      // Legg til hver modell som en option
-      models.forEach(model => {
-        const option = document.createElement('option');
-        option.value = model;  // model er nå en string
-        option.textContent = model;  // vis modellnavnet direkte
-        modelSelector.appendChild(option);
-      });
-
-      // Sett selectedModel hvis den ikke er satt
-      if (!selectedModel && models.length > 0) {
-        selectedModel = models[0];
-        modelSelector.value = selectedModel;
+    const models = await response.json();
+    console.log("Mottatte modeller:", models);
+    
+    // Sjekk at vi faktisk har modelSelector
+    if (!modelSelector) {
+      console.error("modelSelector er ikke definert. Prøver å finne element direkte.");
+      const selector = document.getElementById('model-selector');
+      if (!selector) {
+        console.error("Fant ikke model-selector element i DOM");
+        return;
       }
+      // Hvis vi fant elementet, oppdater global variabel
+      window.modelSelector = selector;
     }
+    
+    // Tøm eksisterende options
+    modelSelector.innerHTML = '';
+    
+    // Legg til en tom option først
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Velg modell';
+    modelSelector.appendChild(defaultOption);
+    
+    // Legg til hver modell som en option
+    models.forEach(model => {
+      console.log("Legger til modell:", model);
+      const option = document.createElement('option');
+      option.value = model;
+      option.textContent = model;
+      modelSelector.appendChild(option);
+    });
+
+    // Sett selectedModel hvis den ikke er satt
+    if (!selectedModel && models.length > 0) {
+      selectedModel = models[0];
+      modelSelector.value = selectedModel;
+      console.log("Satt standard modell til:", selectedModel);
+    }
+    
+    console.log("Ferdig med å populere model-selector");
   } catch (error) {
     console.error('Feil ved henting av modeller:', error);
+    console.error('Full error:', error.stack);
   }
 }
 
