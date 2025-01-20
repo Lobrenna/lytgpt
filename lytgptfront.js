@@ -106,30 +106,42 @@ async function onSendMessage() {
     if (!chatInput || !chatInput.value.trim()) return;
 
     const message = chatInput.value.trim();
-    const fileInputs = document.querySelectorAll('.w-file-upload-input');
     
-    console.log("Alle file inputs funnet:", fileInputs.length);
+    // Add "Generating response..." message
+    appendMessageToChat('system', 'Genererer svar...');
     
-    // Samle alle filer som er valgt
-    let hasFiles = false;
-    const formData = new FormData();
-    formData.append('message', message);
-    
-    // Samle alle filer fra inputs som har en fil valgt
-    let fileCount = 0;
-    fileInputs.forEach((input) => {
-        const uploadDiv = input.closest('.w-file-upload');
-        const successView = uploadDiv?.querySelector('.w-file-upload-success');
-        
-        if (input.files && input.files[0] && successView && !successView.classList.contains('w-hidden')) {
-            fileCount++;
-            console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
-            formData.append('files', input.files[0]);
-            hasFiles = true;
-        }
-    });
-
     try {
+        if (!currentChatId) {
+            console.log("No current chat, creating new chat first");
+            await createNewChat();
+            
+            if (!currentChatId) {
+                throw new Error('Kunne ikke opprette ny chat');
+            }
+        }
+
+        const fileInputs = document.querySelectorAll('.w-file-upload-input');
+        console.log("Alle file inputs funnet:", fileInputs.length);
+        
+        // Samle alle filer som er valgt
+        let hasFiles = false;
+        const formData = new FormData();
+        formData.append('message', message);
+        
+        // Samle alle filer fra inputs som har en fil valgt
+        let fileCount = 0;
+        fileInputs.forEach((input) => {
+            const uploadDiv = input.closest('.w-file-upload');
+            const successView = uploadDiv?.querySelector('.w-file-upload-success');
+            
+            if (input.files && input.files[0] && successView && !successView.classList.contains('w-hidden')) {
+                fileCount++;
+                console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
+                formData.append(`file${fileCount}`, input.files[0]);
+                hasFiles = true;
+            }
+        });
+
         let response;
         
         if (hasFiles) {
@@ -139,15 +151,6 @@ async function onSendMessage() {
                 body: formData
             });
         } else {
-            if (!currentChatId) {
-                console.log("No current chat, creating new chat first");
-                await createNewChat();
-                
-                if (!currentChatId) {
-                    throw new Error('Kunne ikke opprette ny chat');
-                }
-            }
-
             const encodedChatId = encodeURIComponent(currentChatId);
             const endpoint = `${CHATS_ENDPOINT}/${encodedChatId}/message`;
             console.log("Sending message to endpoint:", endpoint);
@@ -173,23 +176,30 @@ async function onSendMessage() {
         const data = await response.json();
         console.log("Response data:", data);
         
-        // Fjern "Genererer svar..." meldingen
-        chatMessages.removeChild(chatMessages.lastChild);
+        // Remove "Generating response..." message if it exists
+        const generatingMsg = chatMessages.querySelector('.chat-message.system:last-child');
+        if (generatingMsg && generatingMsg.textContent.includes('Genererer svar...')) {
+            chatMessages.removeChild(generatingMsg);
+        }
         
-        // Vis modellinfo og svar
-        const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+        // Show model info and response
+        const modelInfo = `Modell: ${data.selected_model || selectedModel} | Kontekst: ${formatFileSize(data.context_length || 0)} | Est. tokens: ${data.estimated_tokens || 0}`;
         appendMessageToChat('system', modelInfo);
         appendMessageToChat('assistant', data.response);
         
-        // Tøm chat input
+        // Clear chat input
         chatInput.value = '';
-        
-        // IKKE fjern file uploads her - la brukeren fjerne dem manuelt
         
     } catch (error) {
         console.error('Feil ved sending av melding:', error);
         console.error('Full error object:', error);
-        chatMessages.removeChild(chatMessages.lastChild);
+        
+        // Remove "Generating response..." message if it exists
+        const generatingMsg = chatMessages.querySelector('.chat-message.system:last-child');
+        if (generatingMsg && generatingMsg.textContent.includes('Genererer svar...')) {
+            chatMessages.removeChild(generatingMsg);
+        }
+        
         appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
     }
 }
