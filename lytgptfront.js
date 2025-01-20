@@ -543,6 +543,8 @@ function onCancelDelete() {
  * setupEventListeners
  */
 function setupEventListeners() {
+  console.log("Setting up event listeners...");
+  
   if (modelSelector) {
     modelSelector.addEventListener('change', onModelChange);
   }
@@ -572,7 +574,6 @@ function setupEventListeners() {
     deleteConfirmNo.addEventListener('click', onCancelDelete);
   }
 
-  // ENTER-tasten i chatInput
   if (chatInput) {
     chatInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -586,25 +587,25 @@ function setupEventListeners() {
     longContextButton.addEventListener('click', handleLongContextSubmit);
   }
 
-  if (longContextInput) {
-    longContextInput.addEventListener('change', handleFileSelection);
-  }
-
-  // Initialiser Webflow's file upload funksjonalitet
-  window.Webflow && window.Webflow.destroy();
-  window.Webflow && window.Webflow.ready();
-  window.Webflow && window.Webflow.require('ix2').init();
+  console.log("Event listeners setup complete");
 }
 
 /**
  * handleFileSelection - Håndterer når en fil velges
  */
 function handleFileSelection(event) {
-  console.log("File selection triggered for input:", event.target.id);
+  // Legg til stack trace for debugging
+  console.log("File selection triggered");
+  console.log("Event target:", event.target);
+  console.log("Stack trace:", new Error().stack);
   
-  // Prevent multiple triggers
-  event.stopPropagation();
-  
+  // Sjekk om denne handleren allerede har blitt kjørt for dette eventet
+  if (event.handled) {
+    console.log("Event already handled, skipping");
+    return;
+  }
+  event.handled = true;
+
   const fileUploadDiv = event.target.closest('.w-file-upload');
   if (!fileUploadDiv) {
     console.log("Fant ikke fileUploadDiv");
@@ -694,8 +695,9 @@ function handleFileSelection(event) {
     // Legg til event listener på det nye input elementet
     const newInput = newUploadDiv.querySelector('.w-file-upload-input');
     if (newInput) {
-      console.log("Legger til event listener på nytt input element");
-      newInput.addEventListener('change', handleFileSelection);
+      console.log("Adding event listener to new input:", newInput.id);
+      // Bruk once: true for å sikre at listener kun kjører én gang
+      newInput.addEventListener('change', handleFileSelection, { once: true });
     }
 
     // Legg til event listener for remove-knappen
@@ -797,8 +799,15 @@ async function handleLongContextSubmit() {
  * cleanupFileUploads
  */
 function cleanupFileUploads() {
-  console.log("Starter cleanupFileUploads");
-
+  console.log("Starting cleanupFileUploads");
+  
+  // Fjern eksisterende event listeners før vi legger til nye
+  const existingInputs = document.querySelectorAll('.w-file-upload-input');
+  existingInputs.forEach(input => {
+    input.removeEventListener('change', handleFileSelection);
+    console.log("Removed event listener from:", input.id);
+  });
+  
   // Finn den spesifikke formen for file uploads (den med Context file upload label)
   const fileUploadForm = Array.from(document.querySelectorAll('.form-block-2.w-form'))
     .find(form => {
@@ -870,8 +879,9 @@ function cleanupFileUploads() {
     // Legg til event listener på det nye input elementet
     const newInput = newUploadDiv.querySelector('.w-file-upload-input');
     if (newInput) {
-      console.log("Legger til event listener på nytt input");
-      newInput.addEventListener('change', handleFileSelection);
+      console.log("Adding event listener to new input:", newInput.id);
+      // Bruk once: true for å sikre at listener kun kjører én gang
+      newInput.addEventListener('change', handleFileSelection, { once: true });
     }
 
     // Legg til det nye elementet i formen
@@ -1047,20 +1057,17 @@ async function loadChat(chatId) {
 }
 
 // Initialiser når DOM er lastet
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOMContentLoaded triggered");
   console.log("Upload files input:", uploadFilesInput);
   console.log("Upload files button:", uploadFilesButton);
+  
+  fetchModels();
+  fetchChats();
+  setupEventListeners();
 
-  try {
-    await fetchModels();
-    await fetchChats();
-    setupEventListeners();
-
-    if (chatInput) {
-      chatInput.style.color = "#000";
-    }
-  } catch (error) {
-    console.error('Error during initialization:', error);
+  if (chatInput) {
+    chatInput.style.color = "#000";
   }
 });
 
