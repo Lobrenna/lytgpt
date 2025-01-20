@@ -103,8 +103,6 @@ function appendMessageToChat(role, htmlContent) {
   });
 }
 
-
-
 /**
  * createNewChat - Opprett en ny chat i backend
  */
@@ -158,7 +156,9 @@ async function sendMessage(chatId, message, retryCount = 3) {
   }
 
   const encodedChatId = encodeURIComponent(chatId);
-  const url = `${API_BASE_URL}/chat/${encodedChatId}/messages`;
+  const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+  
+  console.log("Sending message to URL:", url); // Debug log
   
   const response = await fetch(url, {
     method: 'POST',
