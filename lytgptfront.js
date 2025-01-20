@@ -194,8 +194,9 @@ async function onSendMessage() {
                 throw new Error('Kunne ikke opprette ny chat');
             }
 
-            // Encode the chat ID properly for URLs
-            const encodedChatId = encodeURIComponent(currentChatId.trim());
+            // Replace spaces with underscores before encoding
+            const normalizedChatId = currentChatId.trim().replace(/ /g, '_');
+            const encodedChatId = encodeURIComponent(normalizedChatId);
             console.log("Sending message to chat ID:", encodedChatId);
 
             response = await fetch(`${API_BASE_URL}/chat/${encodedChatId}/messages`, {
