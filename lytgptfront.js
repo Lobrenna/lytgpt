@@ -775,7 +775,16 @@ async function fetchChats(autoLoad = true) {
     console.log("Hentet chats:", chats);
 
     if (chatSelector) {
+      // Tøm eksisterende options
       chatSelector.innerHTML = '';
+      
+      // Legg til en "New Chat" option først
+      const newChatOption = document.createElement('option');
+      newChatOption.value = "new";
+      newChatOption.textContent = "New Chat";
+      chatSelector.appendChild(newChatOption);
+      
+      // Legg til alle eksisterende chats
       chats.forEach(chat => {
         const option = document.createElement('option');
         option.value = chat.title;
@@ -787,9 +796,12 @@ async function fetchChats(autoLoad = true) {
       if (!chats.some(chat => chat.title === currentChatId)) {
         console.log("currentChatId finnes ikke i listen over chats.");
         currentChatId = null;
+        chatSelector.value = "new"; // Sett selector til "New Chat"
+      } else if (currentChatId) {
+        chatSelector.value = currentChatId;
       }
 
-      // Last chat kun hvis autoLoad er true
+      // Last chat kun hvis autoLoad er true og vi har en currentChatId
       if (autoLoad && currentChatId) {
         await loadChat(currentChatId);
       }
