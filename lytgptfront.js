@@ -470,33 +470,33 @@ async function onSendMessage() {
  */
 async function onNewChat() {
   try {
-    console.log("Starter ny chat prosess...");
+    console.log("Oppretter ny chat med modell:", selectedModel);
+
+    // Spinner-funksjonalitet: Vis spinner på newChatButton
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Tøm chat-messages og vis velkomstmelding
+    const chatId = await createNewChat();
+    console.log("Backend returnerte chatId:", chatId);
+    currentChatId = chatId; // Sett currentChatId til den unike ID-en
+    console.log("Oppdatert currentChatId til:", currentChatId);
+
+    await fetchChats();
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+      await loadChat(currentChatId);
+    }
+
     if (chatMessages) {
       chatMessages.innerHTML = '';
-      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     }
 
-    // Hent første tilgjengelige modell
-    if (modelSelector && modelSelector.options.length > 0) {
-      const firstModel = modelSelector.options[0].value;
-      modelSelector.value = firstModel;
-      selectedModel = firstModel;
-      console.log("Satt aktiv modell til:", firstModel);
-    }
-
-    // Reset currentChatId
-    currentChatId = null;
-
-    // Oppdater chat selector
-    await fetchChats(false);
-
+    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+    console.log("Ny chat opprettet med ID:", currentChatId);
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
   } finally {
+    // Spinner-funksjonalitet: Skjul spinner på newChatButton
     hideSpinner(newChatButton);
   }
 }
@@ -775,16 +775,7 @@ async function fetchChats(autoLoad = true) {
     console.log("Hentet chats:", chats);
 
     if (chatSelector) {
-      // Tøm eksisterende options
       chatSelector.innerHTML = '';
-      
-      // Legg til en "New Chat" option først
-      const newChatOption = document.createElement('option');
-      newChatOption.value = "new";
-      newChatOption.textContent = "New Chat";
-      chatSelector.appendChild(newChatOption);
-      
-      // Legg til alle eksisterende chats
       chats.forEach(chat => {
         const option = document.createElement('option');
         option.value = chat.title;
@@ -796,12 +787,9 @@ async function fetchChats(autoLoad = true) {
       if (!chats.some(chat => chat.title === currentChatId)) {
         console.log("currentChatId finnes ikke i listen over chats.");
         currentChatId = null;
-        chatSelector.value = "new"; // Sett selector til "New Chat"
-      } else if (currentChatId) {
-        chatSelector.value = currentChatId;
       }
 
-      // Last chat kun hvis autoLoad er true og vi har en currentChatId
+      // Last chat kun hvis autoLoad er true
       if (autoLoad && currentChatId) {
         await loadChat(currentChatId);
       }
