@@ -719,26 +719,13 @@ async function fetchModels() {
     const models = await response.json();
     console.log("Mottatte modeller:", models);
     
-    // Sjekk at vi faktisk har modelSelector
     if (!modelSelector) {
-      console.error("modelSelector er ikke definert. Prøver å finne element direkte.");
-      const selector = document.getElementById('model-selector');
-      if (!selector) {
-        console.error("Fant ikke model-selector element i DOM");
-        return;
-      }
-      // Hvis vi fant elementet, oppdater global variabel
-      window.modelSelector = selector;
+      console.error("modelSelector er ikke definert");
+      return;
     }
     
     // Tøm eksisterende options
     modelSelector.innerHTML = '';
-    
-    // Legg til en tom option først
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Velg modell';
-    modelSelector.appendChild(defaultOption);
     
     // Legg til hver modell som en option
     models.forEach(model => {
@@ -749,8 +736,8 @@ async function fetchModels() {
       modelSelector.appendChild(option);
     });
 
-    // Sett selectedModel hvis den ikke er satt
-    if (!selectedModel && models.length > 0) {
+    // Sett første modell som aktiv hvis det finnes modeller
+    if (models.length > 0) {
       selectedModel = models[0];
       modelSelector.value = selectedModel;
       console.log("Satt standard modell til:", selectedModel);
@@ -759,7 +746,6 @@ async function fetchModels() {
     console.log("Ferdig med å populere model-selector");
   } catch (error) {
     console.error('Feil ved henting av modeller:', error);
-    console.error('Full error:', error.stack);
   }
 }
 
