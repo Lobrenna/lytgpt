@@ -721,45 +721,51 @@ async function onChatChange(e) {
  * onSetUrl - Legg til URL-kontekst
  */
 async function onSetUrl() {
-  if (!urlInput || !urlInput.value.trim()) {
+  // Spinner-funksjonalitet: Vis spinner på setUrlButton
+  showSpinner(setUrlButton, 'Henter...');
+
+  if (!currentChatId) {
+    try {
+      currentChatId = await createNewChat();
+      console.log("Ny chat opprettet med ID:", currentChatId);
+    } catch (error) {
+      console.error("Feil ved opprettelse av ny chat:", error);
+      alert("Feil ved opprettelse av ny chat.");
+      hideSpinner(setUrlButton); // Skjul spinner ved feil
+      return;
+    }
+  }
+
+  const url = urlInput.value.trim();
+  const maxDepth = 1; // Juster etter behov
+  if (!url) {
     alert("Vennligst skriv inn en URL.");
+    hideSpinner(setUrlButton); // Skjul spinner hvis ingen URL
     return;
   }
 
-  showSpinner(setUrlButton, 'Henter...');
+  const formData = new FormData();
+  formData.append('url', url);
+  formData.append('max_depth', maxDepth);
 
   try {
-    // Opprett ny chat hvis det ikke finnes en aktiv
-    if (!currentChatId) {
-      currentChatId = await createNewChat();
-      console.log("Ny chat opprettet med ID:", currentChatId);
-    }
-
-    const url = urlInput.value.trim();
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
+    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        urls: [url]  // Server forventer en array av URLs
-      })
+      body: formData
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!resp.ok) {
+      console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
+      alert("Feil ved innstilling av URL.");
+      throw new Error('Feil ved innstilling av URL.');
     }
-
-    const data = await response.json();
-    console.log("URL context response:", data);
-    
-    alert("Kontekst lastet fra URL.");
+    const data = await resp.json();
+    alert(data.message);
     urlInput.value = '';
-
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
     alert("Feil ved innstilling av URL.");
   } finally {
+    // Spinner-funksjonalitet: Skjul spinner på setUrlButton uansett utfallet
     hideSpinner(setUrlButton);
   }
 }
