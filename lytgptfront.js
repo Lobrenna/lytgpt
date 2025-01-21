@@ -471,32 +471,34 @@ async function onSendMessage() {
 async function onNewChat() {
   try {
     console.log("Oppretter ny chat med modell:", selectedModel);
-
-    // Spinner-funksjonalitet: Vis spinner på newChatButton
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
+    // Opprett ny chat og vent på resultatet
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
-    currentChatId = chatId; // Sett currentChatId til den unike ID-en
+    
+    // Sett currentChatId før vi henter chats
+    currentChatId = chatId;
     console.log("Oppdatert currentChatId til:", currentChatId);
 
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-      await loadChat(currentChatId);
-    }
-
+    // Tøm chat-vinduet før vi laster inn den nye chatten
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
 
+    // Oppdater chat-selector og last inn den nye chatten
+    await fetchChats(false); // Ikke last chatten automatisk
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+    }
+
+    // Vis velkomstmelding
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat opprettet med ID:", currentChatId);
+    console.log("Ny chat opprettet og initialisert med ID:", currentChatId);
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på newChatButton
     hideSpinner(newChatButton);
   }
 }
@@ -775,6 +777,10 @@ async function fetchChats(autoLoad = true) {
     console.log("Hentet chats:", chats);
 
     if (chatSelector) {
+      // Behold eksisterende currentChatId
+      const existingChatId = currentChatId;
+      
+      // Oppdater chat selector
       chatSelector.innerHTML = '';
       chats.forEach(chat => {
         const option = document.createElement('option');
@@ -783,15 +789,15 @@ async function fetchChats(autoLoad = true) {
         chatSelector.appendChild(option);
       });
 
-      // Hvis currentChatId ikke finnes i listen, reset det
-      if (!chats.some(chat => chat.title === currentChatId)) {
-        console.log("currentChatId finnes ikke i listen over chats.");
-        currentChatId = null;
-      }
-
-      // Last chat kun hvis autoLoad er true
-      if (autoLoad && currentChatId) {
-        await loadChat(currentChatId);
+      // Sjekk om eksisterende chat fortsatt finnes
+      if (existingChatId && chats.some(chat => chat.title === existingChatId)) {
+        chatSelector.value = existingChatId;
+        // Last chat kun hvis autoLoad er true
+        if (autoLoad) {
+          await loadChat(existingChatId);
+        }
+      } else if (!existingChatId) {
+        console.log("Ingen aktiv chat.");
       }
     }
   } catch (error) {
