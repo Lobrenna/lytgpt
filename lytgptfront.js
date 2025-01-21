@@ -476,9 +476,6 @@ async function onNewChat() {
     // Sett en flag i sessionStorage for å indikere at dette er en new chat reload
     sessionStorage.setItem('isNewChatReload', 'true');
     
-    // Vent på at chats er oppdatert
-    await fetchChats();
-    
     // Reload hele siden
     window.location.reload();
 
@@ -1037,18 +1034,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Hvis dette er en new chat reload, ikke gjør noe mer
   if (sessionStorage.getItem('isNewChatReload')) {
       sessionStorage.removeItem('isNewChatReload');
-      return;
+      
+      // Sett opp akkurat som ved første oppstart
+      setupEventListeners();
+      
+      if (chatInput) {
+          chatInput.style.color = "#000";
+      }
+      
+      // Legg til event listener på eksisterende filopplastingsfelt
+      const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+      initialFileInputs.forEach(input => {
+          input.addEventListener('change', handleFileSelection);
+      });
+      
+      // Tøm chat-messages og vis velkomstmelding
+      if (chatMessages) {
+          chatMessages.innerHTML = '';
+          appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+      }
+  } else {
+      setupEventListeners();
+      
+      if (chatInput) {
+          chatInput.style.color = "#000";
+      }
+      
+      // Legg til event listener på eksisterende filopplastingsfelt
+      const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+      initialFileInputs.forEach(input => {
+          input.addEventListener('change', handleFileSelection);
+      });
   }
-
-  setupEventListeners();
-
-  if (chatInput) {
-      chatInput.style.color = "#000";
-  }
-
-  // Legg til event listener på eksisterende filopplastingsfelt
-  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-  initialFileInputs.forEach(input => {
-    input.addEventListener('change', handleFileSelection);
-  });
 });
