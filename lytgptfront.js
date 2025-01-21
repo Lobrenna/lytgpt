@@ -721,9 +721,10 @@ async function onChatChange(e) {
  * onSetUrl - Legg til URL-kontekst
  */
 async function onSetUrl(event) {
-  // Prevent form submission if called from form submit
-  if (event && event.preventDefault) {
+  // Always prevent default behavior
+  if (event) {
     event.preventDefault();
+    event.stopPropagation();
   }
 
   showSpinner(setUrlButton, 'Henter...');
@@ -1120,10 +1121,25 @@ function setupEventListeners() {
     });
   }
 
-  // Add form submit handler for URL input
+  // Handle URL input enter key
+  if (urlInput) {
+    urlInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        onSetUrl();
+      }
+    });
+  }
+
+  // Prevent form submission
   const urlForm = document.getElementById('email-form');
   if (urlForm) {
-    urlForm.addEventListener('submit', onSetUrl);
+    urlForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    });
   }
 
   console.log("Event listeners setup complete");
