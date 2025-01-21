@@ -477,6 +477,9 @@ async function onNewChat() {
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
     
+    // Sett en flag i sessionStorage for å indikere at dette er en new chat reload
+    sessionStorage.setItem('isNewChatReload', 'true');
+    
     // Vent på at chats er oppdatert
     await fetchChats();
     
@@ -1043,4 +1046,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   initializeModelSelector();
+
+  // Sjekk om dette er en new chat reload
+  if (sessionStorage.getItem('isNewChatReload')) {
+      // Fjern flagget
+      sessionStorage.removeItem('isNewChatReload');
+      // Ikke kjør new chat prosessen på nytt
+      return;
+  }
 });
