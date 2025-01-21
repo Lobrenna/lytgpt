@@ -731,7 +731,7 @@ async function onSetUrl() {
     } catch (error) {
       console.error("Feil ved opprettelse av ny chat:", error);
       alert("Feil ved opprettelse av ny chat.");
-      hideSpinner(setUrlButton); // Skjul spinner ved feil
+      hideSpinner(setUrlButton);
       return;
     }
   }
@@ -740,7 +740,7 @@ async function onSetUrl() {
   const maxDepth = 1; // Juster etter behov
   if (!url) {
     alert("Vennligst skriv inn en URL.");
-    hideSpinner(setUrlButton); // Skjul spinner hvis ingen URL
+    hideSpinner(setUrlButton);
     return;
   }
 
@@ -753,11 +753,11 @@ async function onSetUrl() {
       method: 'POST',
       body: formData
     });
+
     if (!resp.ok) {
-      console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
-      alert("Feil ved innstilling av URL.");
-      throw new Error('Feil ved innstilling av URL.');
+      throw new Error(`HTTP error! status: ${resp.status}`);
     }
+
     const data = await resp.json();
     alert(data.message);
     urlInput.value = '';
@@ -765,7 +765,6 @@ async function onSetUrl() {
     console.error("Feil ved innstilling av URL:", error);
     alert("Feil ved innstilling av URL.");
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på setUrlButton uansett utfallet
     hideSpinner(setUrlButton);
   }
 }
