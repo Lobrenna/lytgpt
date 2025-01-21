@@ -1027,8 +1027,19 @@ async function updateChatSelector(newChatId) {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DOMContentLoaded triggered");
   
-  fetchModels();
-  fetchChats();
+  // Last inn modeller og initialiser selector
+  await fetchModels();
+  initializeModelSelector();
+  
+  // Last inn eksisterende chats
+  await fetchChats();
+  
+  // Hvis dette er en new chat reload, ikke gjør noe mer
+  if (sessionStorage.getItem('isNewChatReload')) {
+      sessionStorage.removeItem('isNewChatReload');
+      return;
+  }
+
   setupEventListeners();
 
   if (chatInput) {
@@ -1040,12 +1051,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   initialFileInputs.forEach(input => {
     input.addEventListener('change', handleFileSelection);
   });
-
-  initializeModelSelector();
-
-  // Sjekk om dette er en new chat reload
-  if (sessionStorage.getItem('isNewChatReload')) {
-      sessionStorage.removeItem('isNewChatReload');
-      return;
-  }
 });
