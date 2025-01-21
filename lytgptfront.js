@@ -658,6 +658,20 @@ async function onSetUrl() {
 
     const data = await resp.json();
     console.log("URL scrapet og fil lastet:", data.context_file);
+
+    // Oppdater file upload UI
+    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
+    if (contextFileUpload) {
+      const uploadWrapper = contextFileUpload.closest('.w-file-upload');
+      const uploadSuccess = uploadWrapper.querySelector('.w-file-upload-success');
+      const uploadDefault = uploadWrapper.querySelector('.w-file-upload-default');
+      
+      // Sett filnavn og vis success state
+      uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
+      uploadDefault.style.display = 'none';
+      uploadSuccess.style.display = 'inline-block';
+    }
+
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
