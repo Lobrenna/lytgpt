@@ -760,30 +760,28 @@ async function onSetUrl() {
       throw new Error('Ingen filnavn mottatt fra server');
     }
     
-    // Finn Context file upload form block (den andre form-block-2 med file upload)
+    // Finn Context file upload form block
     const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
+    if (!contextFileUpload) {
+      console.log('Kunne ikke finne file upload element');
+      return;
+    }
     
-    // Sett data-value attributtet med filnavnet vi fikk fra backend
-    contextFileUpload.setAttribute('data-value', data.context_file);
+    // Oppdater file upload UI
+    const uploadWrapper = contextFileUpload.closest('.w-file-upload');
+    const uploadSuccess = uploadWrapper.querySelector('.w-file-upload-success');
+    const uploadDefault = uploadWrapper.querySelector('.w-file-upload-default');
     
-    // Trigger success state i Webflow UI
-    const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
-    const uploadDefault = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-default');
-    
+    // Sett filnavn og vis success state
+    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
     uploadDefault.style.display = 'none';
     uploadSuccess.style.display = 'inline-block';
-    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
-    
-    // Legg til melding i chat
-    if (typeof data.message === 'string') {
-      appendMessageToChat({
-        role: 'system',
-        content: data.message
-      });
-    }
     
     // Clear URL input
     urlInput.value = '';
+    
+    // Logg suksess til console i stedet for chat
+    console.log('URL scrapet og fil lastet:', data.context_file);
     
   } catch (error) {
     console.error('Error:', error);
