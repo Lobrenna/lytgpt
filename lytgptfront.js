@@ -721,45 +721,39 @@ async function onChatChange(e) {
  * onSetUrl - Legg til URL-kontekst
  */
 async function onSetUrl() {
-  showSpinner(setUrlButton, 'Henter...');
-
-  if (!currentChatId) {
-    try {
-      currentChatId = await createNewChat();
-      console.log("Ny chat opprettet med ID:", currentChatId);
-    } catch (error) {
-      console.error("Feil ved opprettelse av ny chat:", error);
-      appendMessageToChat('error', "Feil ved opprettelse av ny chat.");
-      hideSpinner(setUrlButton);
-      return;
-    }
-  }
-
-  const url = urlInput.value.trim();
-  const maxDepth = 1;
-  if (!url) {
+  if (!urlInput || !urlInput.value.trim()) {
     appendMessageToChat('error', "Vennligst skriv inn en URL.");
-    hideSpinner(setUrlButton);
     return;
   }
 
-  const formData = new FormData();
-  formData.append('url', url);
-  formData.append('max_depth', maxDepth);
+  showSpinner(setUrlButton, 'Henter...');
 
   try {
-    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
-      method: 'POST',
-      body: formData
-    });
-    if (!resp.ok) {
-      console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
-      appendMessageToChat('error', "Feil ved innstilling av URL.");
-      throw new Error('Feil ved innstilling av URL.');
+    // Opprett ny chat hvis det ikke finnes en aktiv
+    if (!currentChatId) {
+      currentChatId = await createNewChat();
+      console.log("Ny chat opprettet med ID:", currentChatId);
     }
-    const data = await resp.json();
+
+    const url = urlInput.value.trim();
+    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url: url })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("URL context response:", data);
+    
     appendMessageToChat('system', "Kontekst lastet fra URL.");
     urlInput.value = '';
+
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
     appendMessageToChat('error', "Feil ved innstilling av URL.");
