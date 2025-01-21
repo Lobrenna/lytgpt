@@ -721,7 +721,6 @@ async function onSetUrl(event) {
   }
 
   const url = urlInput.value.trim();
-  const maxDepth = 1;
   if (!url) {
     appendMessageToChat('error', "Vennligst skriv inn en URL.");
     hideSpinner(setUrlButton);
@@ -736,8 +735,7 @@ async function onSetUrl(event) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        url: url,
-        max_depth: maxDepth
+        url: url
       })
     });
 
@@ -757,7 +755,7 @@ async function onSetUrl(event) {
         chat_id: currentChatId,
         message: 'Kan du bekrefte at du har tilgang til konteksten?',
         preferred_model: selectedModel,
-        context_file: data.filenames[0]  // Legg til filnavnet fra URL-scrapingen
+        context_file: data.filenames[0]
       })
     });
 
