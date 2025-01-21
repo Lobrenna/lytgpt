@@ -333,6 +333,11 @@ async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
+  
+  // 1. Vis brukerens melding først
+  appendMessageToChat('user', renderMarkdown(message));
+  chatInput.value = '';
+
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
   let hasFiles = false;
   const formData = new FormData();
@@ -352,9 +357,7 @@ async function onSendMessage() {
     }
   });
 
-  chatInput.value = '';
   const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-
   showSpinner(sendButton, 'Sender...');
 
   try {
@@ -406,10 +409,12 @@ async function onSendMessage() {
         }
       }
 
-      // Vis kun modellinfo og svar
+      // Vis modellinfo
       const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
-      appendMessageToChat('assistant', data.response);
+
+      // Formater og vis svaret med markdown
+      appendMessageToChat('assistant', renderMarkdown(data.response));
 
     } else {
       // Vanlig chat uten filer
@@ -438,15 +443,15 @@ async function onSendMessage() {
         currentChatId = data.new_chat_id;
         console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
         
-        // Oppdater chat-selector uten å laste chatten på nytt
+        // Oppdater chat-selector uten å laste chatten
         await fetchChats(false);
         if (chatSelector) {
           chatSelector.value = currentChatId;
         }
       }
 
-      // Vis responsen hvis den ikke er vist ennå
-      appendMessageToChat('assistant', data.response);
+      // Formater og vis svaret med markdown
+      appendMessageToChat('assistant', renderMarkdown(data.response));
     }
 
   } catch (error) {
