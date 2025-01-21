@@ -721,7 +721,6 @@ async function onChatChange(e) {
  * onSetUrl - Legg til URL-kontekst
  */
 async function onSetUrl() {
-  // Spinner-funksjonalitet: Vis spinner på setUrlButton
   showSpinner(setUrlButton, 'Henter...');
 
   if (!currentChatId) {
@@ -730,17 +729,17 @@ async function onSetUrl() {
       console.log("Ny chat opprettet med ID:", currentChatId);
     } catch (error) {
       console.error("Feil ved opprettelse av ny chat:", error);
-      alert("Feil ved opprettelse av ny chat.");
-      hideSpinner(setUrlButton); // Skjul spinner ved feil
+      appendMessageToChat('error', "Feil ved opprettelse av ny chat.");
+      hideSpinner(setUrlButton);
       return;
     }
   }
 
   const url = urlInput.value.trim();
-  const maxDepth = 1; // Juster etter behov
+  const maxDepth = 1;
   if (!url) {
-    alert("Vennligst skriv inn en URL.");
-    hideSpinner(setUrlButton); // Skjul spinner hvis ingen URL
+    appendMessageToChat('error', "Vennligst skriv inn en URL.");
+    hideSpinner(setUrlButton);
     return;
   }
 
@@ -755,17 +754,16 @@ async function onSetUrl() {
     });
     if (!resp.ok) {
       console.error("Feil ved innstilling av URL:", resp.status, resp.statusText);
-      alert("Feil ved innstilling av URL.");
+      appendMessageToChat('error', "Feil ved innstilling av URL.");
       throw new Error('Feil ved innstilling av URL.');
     }
     const data = await resp.json();
-    alert(data.message);
+    appendMessageToChat('system', "Kontekst lastet fra URL.");
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
-    alert("Feil ved innstilling av URL.");
+    appendMessageToChat('error', "Feil ved innstilling av URL.");
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på setUrlButton uansett utfallet
     hideSpinner(setUrlButton);
   }
 }
