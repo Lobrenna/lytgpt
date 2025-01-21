@@ -737,7 +737,7 @@ async function onSetUrl() {
 
   // Vis spinner på knappen
   const originalButtonText = setUrlButton.textContent;
-  setUrlButton.innerHTML = '<div class="w-icon-file-upload-uploading"></div>';
+  setUrlButton.innerHTML = '<div class="spinner"></div>Scraping...';
   setUrlButton.disabled = true;
 
   try {
