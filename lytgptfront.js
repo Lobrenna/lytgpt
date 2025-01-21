@@ -470,27 +470,46 @@ async function onSendMessage() {
  */
 async function onNewChat() {
   try {
-    console.log("Oppretter ny chat med modell:", selectedModel);
+    console.log("Starter ny chat prosess...");
 
     // Spinner-funksjonalitet: Vis spinner på newChatButton
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Reset alle file inputs
-    const fileInputs = document.querySelectorAll('.w-file-upload-input');
-    fileInputs.forEach(input => {
-      input.value = '';
-      const uploadDiv = input.closest('.w-file-upload');
-      if (uploadDiv) {
-        // Reset success view
-        const successView = uploadDiv.querySelector('.w-file-upload-success');
-        if (successView) {
-          successView.classList.add('w-hidden');
-        }
-        // Reset upload view
-        const uploadView = uploadDiv.querySelector('.w-file-upload-default');
-        if (uploadView) {
-          uploadView.classList.remove('w-hidden');
-        }
+    // Reset alle file upload elementer
+    const fileUploadDivs = document.querySelectorAll('.w-file-upload');
+    console.log("Fant file upload divs:", fileUploadDivs.length);
+    
+    fileUploadDivs.forEach((uploadDiv, index) => {
+      console.log(`Resetter file upload div ${index}`);
+      
+      // Reset input
+      const fileInput = uploadDiv.querySelector('.w-file-upload-input');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // Skjul success view
+      const successView = uploadDiv.querySelector('.w-file-upload-success');
+      if (successView) {
+        successView.classList.add('w-hidden');
+      }
+
+      // Vis default view
+      const defaultView = uploadDiv.querySelector('.w-file-upload-default');
+      if (defaultView) {
+        defaultView.classList.remove('w-hidden');
+      }
+
+      // Reset error view
+      const errorView = uploadDiv.querySelector('.w-file-upload-error');
+      if (errorView) {
+        errorView.classList.add('w-hidden');
+      }
+
+      // Reset file name text hvis det finnes
+      const fileNameText = uploadDiv.querySelector('.w-file-upload-file-name');
+      if (fileNameText) {
+        fileNameText.textContent = '';
       }
     });
 
@@ -499,20 +518,23 @@ async function onNewChat() {
       chatInput.value = '';
     }
 
-    // Reset long context input og file input hvis de finnes
+    // Reset long context elementer
     const longContextInput = document.querySelector('#long-context-input');
     if (longContextInput) {
+      console.log("Resetter long context input");
       longContextInput.value = '';
     }
 
     const longContextFileInput = document.querySelector('#long-context-file');
     if (longContextFileInput) {
+      console.log("Resetter long context file input");
       longContextFileInput.value = '';
     }
 
+    console.log("Oppretter ny chat med modell:", selectedModel);
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
-    currentChatId = chatId; // Sett currentChatId til den unike ID-en
+    currentChatId = chatId;
     console.log("Oppdatert currentChatId til:", currentChatId);
 
     await fetchChats();
@@ -525,20 +547,21 @@ async function onNewChat() {
       chatMessages.innerHTML = '';
     }
 
-    // Reset selectedModel til standard modell hvis den er satt
+    // Reset selectedModel til standard modell
     if (modelSelector) {
       const defaultModel = modelSelector.options[0].value;
       modelSelector.value = defaultModel;
       selectedModel = defaultModel;
+      console.log("Reset modell til:", defaultModel);
     }
 
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat opprettet med ID:", currentChatId);
+    console.log("Ny chat prosess fullført");
+
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på newChatButton
     hideSpinner(newChatButton);
   }
 }
