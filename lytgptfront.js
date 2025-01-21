@@ -774,6 +774,14 @@ async function onSetUrl() {
     uploadSuccess.style.display = 'inline-block';
     uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
     
+    // Legg til systemmelding i chat
+    if (data.message) {
+      appendMessageToChat({
+        role: 'system',
+        content: data.message
+      });
+    }
+    
     // Clear URL input
     urlInput.value = '';
     
