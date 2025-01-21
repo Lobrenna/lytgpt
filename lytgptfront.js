@@ -481,43 +481,59 @@ async function onNewChat() {
       console.log("Reset modell til første tilgjengelige:", firstModel);
     }
 
-    // Reset file upload - finn alle file upload elementer og reset dem
-    const fileUploadDivs = document.querySelectorAll('.w-file-upload');
-    fileUploadDivs.forEach(uploadDiv => {
-      // Reset input
-      const fileInput = uploadDiv.querySelector('.w-file-upload-input');
-      if (fileInput) {
-        fileInput.value = '';
-        fileInput.removeAttribute('data-value');
+    // Finn form som inneholder file uploads
+    const fileUploadForm = document.querySelector('.form-block-2:not(.newchat):not(.url) form');
+    if (fileUploadForm) {
+      // Finn alle file upload divs i formen
+      const fileUploadDivs = fileUploadForm.querySelectorAll('.w-file-upload');
+      console.log("Fant", fileUploadDivs.length, "file upload elementer");
+
+      // Behold kun det første elementet og slett resten
+      if (fileUploadDivs.length > 1) {
+        for (let i = 1; i < fileUploadDivs.length; i++) {
+          console.log("Sletter ekstra file upload element");
+          fileUploadDivs[i].remove();
+        }
       }
 
-      // Vis default view
-      const defaultView = uploadDiv.querySelector('.w-file-upload-default');
-      if (defaultView) {
-        defaultView.classList.remove('w-hidden');
-        defaultView.style.display = '';
-      }
+      // Reset det gjenværende elementet
+      const uploadDiv = fileUploadDivs[0];
+      if (uploadDiv) {
+        // Reset input
+        const fileInput = uploadDiv.querySelector('.w-file-upload-input');
+        if (fileInput) {
+          fileInput.value = '';
+          fileInput.removeAttribute('data-value');
+        }
 
-      // Skjul success view
-      const successView = uploadDiv.querySelector('.w-file-upload-success');
-      if (successView) {
-        successView.classList.add('w-hidden');
-        successView.style.display = 'none';
-      }
+        // Vis default view
+        const defaultView = uploadDiv.querySelector('.w-file-upload-default');
+        if (defaultView) {
+          defaultView.classList.remove('w-hidden');
+          defaultView.style.display = '';
+        }
 
-      // Reset file name
-      const fileNameElement = uploadDiv.querySelector('.w-file-upload-file-name');
-      if (fileNameElement) {
-        fileNameElement.textContent = '';
-      }
+        // Skjul success view
+        const successView = uploadDiv.querySelector('.w-file-upload-success');
+        if (successView) {
+          successView.classList.add('w-hidden');
+          successView.style.display = 'none';
+        }
 
-      // Skjul error view
-      const errorView = uploadDiv.querySelector('.w-file-upload-error');
-      if (errorView) {
-        errorView.classList.add('w-hidden');
-        errorView.style.display = 'none';
+        // Reset file name
+        const fileNameElement = uploadDiv.querySelector('.w-file-upload-file-name');
+        if (fileNameElement) {
+          fileNameElement.textContent = '';
+        }
+
+        // Skjul error view
+        const errorView = uploadDiv.querySelector('.w-file-upload-error');
+        if (errorView) {
+          errorView.classList.add('w-hidden');
+          errorView.style.display = 'none';
+        }
       }
-    });
+    }
 
     // Reset chat input
     if (chatInput) {
