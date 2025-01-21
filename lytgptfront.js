@@ -823,33 +823,23 @@ async function fetchChats(autoLoad = true) {
     console.log("Hentet chats:", chats);
 
     if (chatSelector) {
-      // Sjekk om vi har default Webflow options
-      const hasDefaultOptions = Array.from(chatSelector.options).some(option => 
-        option.value === "First" || option.value === "Second" || option.value === "Third"
-      );
+      chatSelector.innerHTML = '';
+      chats.forEach(chat => {
+        const option = document.createElement('option');
+        option.value = chat.title;
+        option.textContent = chat.title;
+        chatSelector.appendChild(option);
+      });
 
-      // Hvis vi har default options eller chat-selector er tom, populer på nytt
-      if (hasDefaultOptions || chatSelector.children.length === 0) {
-        console.log("Fjerner default options og populerer chat selector");
-        chatSelector.innerHTML = ''; // Tøm eksisterende options
-        
-        chats.forEach(chat => {
-          const option = document.createElement('option');
-          option.value = chat.title;
-          option.textContent = chat.title;
-          chatSelector.appendChild(option);
-        });
+      // Hvis currentChatId ikke finnes i listen, reset det
+      if (!chats.some(chat => chat.title === currentChatId)) {
+        console.log("currentChatId finnes ikke i listen over chats.");
+        currentChatId = null;
       }
 
-      // Oppdater valgt chat hvis vi har en currentChatId
-      if (currentChatId && chats.some(chat => chat.title === currentChatId)) {
-        console.log("Setter aktiv chat til:", currentChatId);
-        chatSelector.value = currentChatId;
-        if (autoLoad) {
-          await loadChat(currentChatId);
-        }
-      } else {
-        console.log("Ingen aktiv chat å sette");
+      // Last chat kun hvis autoLoad er true
+      if (autoLoad && currentChatId) {
+        await loadChat(currentChatId);
       }
     }
   } catch (error) {
