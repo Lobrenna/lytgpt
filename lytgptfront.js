@@ -138,20 +138,26 @@ function appendMessageToChat(role, htmlContent) {
   }
   const msgEl = document.createElement('div');
   msgEl.classList.add('chat-message', role);
-
-  // Legg til pre-wrap styling for å bevare mellomrom og linjeskift
   msgEl.style.whiteSpace = 'pre-wrap';
 
-  // Fjern <p> tags fra brukerens meldinger
+  // For brukerens meldinger, fjern context-delen hvis den finnes
   if (role === 'user') {
+    // Sjekk om innholdet starter med "Context:"
+    if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
+      // Finn spørsmålet (alt etter "Spørsmål:")
+      const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
+      if (questionMatch) {
+        htmlContent = questionMatch[1].trim();
+      }
+    }
+    
+    // Fjern <p> tags fra brukerens meldinger
     htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
   }
 
   // Sjekk om innholdet ser ut som ren kode (ingen markdown)
   if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
-    // Wrap innholdet i en kodeblokk hvis det ser ut som kode
-    htmlContent = '```\n' + htmlContent + '\n```';
-    // Konverter til markdown på nytt
+    // Konverter til markdown
     htmlContent = renderMarkdown(htmlContent);
   }
 
@@ -346,16 +352,6 @@ async function onSendMessage() {
     }
   });
 
-  // For fil-baserte meldinger, vis bare spørsmålsdelen
-  if (hasFiles) {
-    const questionMatch = message.match(/Spørsmål:.*$/s);
-    if (questionMatch) {
-      appendMessageToChat('user', renderMarkdown(questionMatch[0]));
-    }
-  } else {
-    appendMessageToChat('user', renderMarkdown(message));
-  }
-  
   chatInput.value = '';
   appendMessageToChat('assistant', 'Genererer svar...');
 
@@ -384,9 +380,11 @@ async function onSendMessage() {
       // Fjern "Genererer svar..." meldingen
       chatMessages.removeChild(chatMessages.lastChild);
 
+      // Håndter new_chat_id uten å laste chatten på nytt
       if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+        const oldChatId = currentChatId;
         currentChatId = data.new_chat_id;
-        console.log("Oppdatert currentChatId til:", currentChatId);
+        console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
         
         // Oppdater chat-selector uten å laste chatten på nytt
         await fetchChats();
@@ -404,39 +402,30 @@ async function onSendMessage() {
       // Vanlig chat uten filer
       if (!currentChatId) {
         currentChatId = await createNewChat();
-        console.log("Oppdatert currentChatId til:", currentChatId);
-      }
-
-      if (!currentChatId) {
-        throw new Error('Kunne ikke opprette ny chat');
+        console.log("Opprettet ny chat med ID:", currentChatId);
       }
 
       data = await sendMessage(currentChatId, message);
 
-      // Sjekk om chat_id er renamet
-      if (data.new_chat_id) {
-        console.log("Chat ID ble renamet til:", data.new_chat_id);
-        // Oppdater currentChatId
+      // Håndter new_chat_id uten å laste chatten på nytt
+      if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+        const oldChatId = currentChatId;
         currentChatId = data.new_chat_id;
-        console.log("Oppdatert currentChatId til:", currentChatId);
-
-        // Oppdater chat-selector
+        console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
+        
+        // Oppdater chat-selector uten å laste chatten på nytt
         await fetchChats();
         if (chatSelector) {
           chatSelector.value = currentChatId;
-          await loadChat(currentChatId);
         }
-      } else {
-        // Vis responsen
-        appendMessageToChat('assistant', data.response);
       }
 
-      chatInput.value = '';
+      // Vis responsen
+      appendMessageToChat('assistant', data.response);
     }
 
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
-    console.error('Full error object:', error);
     // Fjern den "Genererer svar..." meldingen
     const lastMessage = chatMessages.lastChild;
     if (lastMessage && lastMessage.textContent === 'Genererer svar...') {
@@ -444,7 +433,6 @@ async function onSendMessage() {
     }
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på sendButton uansett utfallet
     hideSpinner(sendButton);
   }
 }
