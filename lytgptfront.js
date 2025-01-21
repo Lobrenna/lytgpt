@@ -282,30 +282,72 @@ async function onSendMessage() {
 
   const message = chatInput.value.trim();
   
-  // Vis brukerens melding først
+  // 1. Vis brukerens melding først
   appendMessageToChat('user', renderMarkdown(message));
   chatInput.value = '';
+
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  let hasFiles = false;
+  const formData = new FormData();
+  formData.append('message', message);
+
+  // Sjekk om det er filer
+  fileInputs.forEach((input) => {
+    const uploadDiv = input.closest('.w-file-upload');
+    const successView = uploadDiv?.querySelector('.w-file-upload-success');
+
+    if (input.files && 
+        input.files[0] && 
+        successView && 
+        !successView.classList.contains('w-hidden')) {
+      formData.append('files', input.files[0]);
+      hasFiles = true;
+    }
+  });
 
   const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
   showSpinner(sendButton, 'Sender...');
 
   try {
-    let response;
-    
-    // Sjekk om vi har en fil i context
-    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
-    const hasContextFile = contextFileUpload && contextFileUpload.getAttribute('data-value');
+    let data;
 
-    if (hasContextFile) {
-      // Send som long-context request med FormData
-      const formData = new FormData();
-      formData.append('message', message);
-      formData.append('context_file', hasContextFile);
-      
-      response = await fetch(`${API_BASE_URL}/chat/long-context`, {
+    if (hasFiles) {
+      if (selectedModel) {
+        formData.append('preferred_model', selectedModel);
+      }
+
+      console.log("Sender long-context request med formData:", Object.fromEntries(formData));
+
+      const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
         method: 'POST',
         body: formData
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+      }
+
+      data = await response.json();
+      console.log("Mottatt data fra long-context:", {
+        new_chat_id: data.new_chat_id,
+        selected_model: data.selected_model,
+        context_length: data.context_length,
+        estimated_tokens: data.estimated_tokens,
+        response_type: typeof data.response,
+        response_starts_with: data.response.substring(0, 100),
+        full_response: data.response
+      });
+
+      // Fjern "Genererer svar..." meldingen
+      if (generatingMessage && generatingMessage.parentNode) {
+        generatingMessage.parentNode.removeChild(generatingMessage);
+      }
+
+      // Vis modellinfo
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+
     } else {
       // Vanlig chat uten filer
       if (!currentChatId) {
@@ -313,39 +355,23 @@ async function onSendMessage() {
         console.log("Opprettet ny chat med ID:", currentChatId);
       }
 
-      response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
+      console.log("Sender vanlig melding til chat:", currentChatId);
+      const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: message })
       });
-    }
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Fjern "Genererer svar..." meldingen
-    if (generatingMessage && generatingMessage.parentNode) {
-      generatingMessage.parentNode.removeChild(generatingMessage);
-    }
-
-    // Håndter new_chat_id hvis det finnes
-    if (data.new_chat_id && data.new_chat_id !== currentChatId) {
-      const oldChatId = currentChatId;
-      currentChatId = data.new_chat_id;
-      console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
-      
-      await fetchChats(false);
-      if (chatSelector) {
-        chatSelector.value = currentChatId;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      data = await response.json();
     }
 
-    // Formater og vis svaret
+    // Formater og vis svaret med markdown
     appendMessageToChat('assistant', renderMarkdown(data.response));
 
   } catch (error) {
