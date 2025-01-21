@@ -430,6 +430,22 @@ async function onSendMessage() {
         console.log("Opprettet ny chat med ID:", currentChatId);
       }
 
+      // Sjekk om chatten har kontekst før vi laster den på nytt
+      try {
+        const contextResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context`);
+        const contextData = await contextResponse.json();
+        
+        if (contextData.context && contextData.context.trim()) {
+          // Last chatten på nytt bare hvis det finnes kontekst
+          await loadChat(currentChatId);
+          console.log("Chat lastet på nytt med eksisterende kontekst");
+        } else {
+          console.log("Ingen kontekst funnet, fortsetter uten å laste chatten på nytt");
+        }
+      } catch (error) {
+        console.warn("Kunne ikke sjekke kontekst:", error);
+      }
+
       console.log("Sender vanlig melding til chat:", currentChatId);
       data = await sendMessage(currentChatId, message);
       console.log("Mottatt data fra vanlig chat:", {
