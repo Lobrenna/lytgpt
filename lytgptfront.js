@@ -699,93 +699,53 @@ async function onChatChange(e) {
 /**
  * onSetUrl - Legg til URL-kontekst
  */
-async function onSetUrl(event) {
-  // Always prevent default behavior
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  showSpinner(setUrlButton, 'Henter...');
-
+async function onSetUrl() {
   if (!currentChatId) {
-    try {
-      currentChatId = await createNewChat();
-      console.log("Ny chat opprettet med ID:", currentChatId);
-    } catch (error) {
-      console.error("Feil ved opprettelse av ny chat:", error);
-      appendMessageToChat('error', "Feil ved opprettelse av ny chat.");
-      hideSpinner(setUrlButton);
-      return;
-    }
+    showError("Vennligst velg eller opprett en chat først");
+    return;
   }
 
   const url = urlInput.value.trim();
   if (!url) {
-    appendMessageToChat('error', "Vennligst skriv inn en URL.");
-    hideSpinner(setUrlButton);
+    showError("Vennligst skriv inn en URL");
     return;
   }
 
   try {
-    // Først scraper vi URL-en
-    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
+    const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        url: url,
-        max_depth: 1
-      })
+      body: JSON.stringify({ url: url })
     });
 
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await resp.json();
+    const data = await response.json();
     
-    // Nå laster vi opp filen som kontekst
-    const longContextResponse = await fetch(`${API_BASE_URL}/chat/long-context`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chat_id: currentChatId,
-        message: 'Kan du bekrefte at du har tilgang til konteksten?',
-        preferred_model: selectedModel,
-        context_file: data.filenames[0]
-      })
-    });
-
-    if (!longContextResponse.ok) {
-      throw new Error(`HTTP error! status: ${longContextResponse.status}`);
-    }
-
-    const longContextData = await longContextResponse.json();
+    // Finn Context file upload form block (den andre form-block-2 med file upload)
+    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
     
-    // Vis bekreftelse og modellinfo
-    const message = `Lastet inn kontekst fra ${url}\nLagret som: ${data.filenames[0]}\nKontekst er nå tilgjengelig for chat.`;
-    appendMessageToChat('system', message);
+    // Sett data-value attributtet med filnavnet vi fikk fra backend
+    contextFileUpload.setAttribute('data-value', data.files[0]);
     
-    // Vis modellinfo hvis tilgjengelig
-    if (longContextData.selected_model) {
-      const modelInfo = `Modell: ${longContextData.selected_model} | Kontekst: ${formatFileSize(longContextData.context_length)} | Est. tokens: ${longContextData.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-    }
-
-    // Vis svaret fra modellen
-    appendMessageToChat('assistant', renderMarkdown(longContextData.response));
-
+    // Trigger success state i Webflow UI
+    const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
+    const uploadDefault = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-default');
+    
+    uploadDefault.style.display = 'none';
+    uploadSuccess.style.display = 'inline-block';
+    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.files[0];
+    
+    // Clear URL input
     urlInput.value = '';
-
+    
   } catch (error) {
-    console.error("Feil ved innstilling av URL:", error);
-    appendMessageToChat('error', "Feil ved innstilling av URL.");
-  } finally {
-    hideSpinner(setUrlButton);
+    console.error('Error:', error);
+    showError("Kunne ikke hente tekst fra URL");
   }
 }
 
