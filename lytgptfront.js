@@ -290,52 +290,62 @@ async function onSendMessage() {
   showSpinner(sendButton, 'Sender...');
 
   try {
-    // Vanlig chat uten filer
-    if (!currentChatId) {
-      currentChatId = await createNewChat();
-      console.log("Opprettet ny chat med ID:", currentChatId);
-    }
+    let response;
+    
+    // Sjekk om vi har en fil i context
+    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
+    const hasContextFile = contextFileUpload && contextFileUpload.getAttribute('data-value');
 
-    console.log("Sender vanlig melding til chat:", currentChatId);
-    const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: message })
-    });
+    if (hasContextFile) {
+      // Send som long-context request med FormData
+      const formData = new FormData();
+      formData.append('message', message);
+      formData.append('files', hasContextFile);
+      
+      response = await fetch(`${API_BASE_URL}/chat/long-context`, {
+        method: 'POST',
+        body: formData
+      });
+    } else {
+      // Vanlig chat uten filer
+      if (!currentChatId) {
+        currentChatId = await createNewChat();
+        console.log("Opprettet ny chat med ID:", currentChatId);
+      }
+
+      response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: message })
+      });
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Mottatt data fra vanlig chat:", {
-      new_chat_id: data.new_chat_id,
-      response_type: typeof data.response,
-      response_starts_with: data.response.substring(0, 100),
-      full_response: data.response
-    });
 
     // Fjern "Genererer svar..." meldingen
     if (generatingMessage && generatingMessage.parentNode) {
       generatingMessage.parentNode.removeChild(generatingMessage);
     }
 
-    // Håndter new_chat_id uten å laste chatten på nytt
+    // Håndter new_chat_id hvis det finnes
     if (data.new_chat_id && data.new_chat_id !== currentChatId) {
       const oldChatId = currentChatId;
       currentChatId = data.new_chat_id;
       console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
       
-      // Oppdater chat-selector uten å laste chatten
       await fetchChats(false);
       if (chatSelector) {
         chatSelector.value = currentChatId;
       }
     }
 
-    // Formater og vis svaret med markdown
+    // Formater og vis svaret
     appendMessageToChat('assistant', renderMarkdown(data.response));
 
   } catch (error) {
