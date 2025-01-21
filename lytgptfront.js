@@ -741,10 +741,15 @@ async function onSetUrl() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ url: url })
+      body: JSON.stringify({
+        urls: [url],  // Server forventer en array av URLs
+        max_depth: 1  // Legg til max_depth parameter
+      })
     });
 
     if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Server error details:", errorData);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
