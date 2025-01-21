@@ -592,64 +592,61 @@ async function onUploadFiles() {
 }
 
 /**
- * onDeleteChat - Håndterer sletting av chat med bekreftelse
+ * deleteChat - Sletter en spesifikk chat
+ * @param {string} chatId - ID til chatten som skal slettes
  */
-function onDeleteChat() {
-  if (!currentChatId) {
-    alert("Vennligst velg en chat å slette.");
-    return;
-  }
-  if (deleteConfirmation && overlay) {
-    deleteConfirmation.style.display = 'block';
-    overlay.style.display = 'block';
-  }
-}
-
-/**
- * onConfirmDelete - Bekrefter sletting av chat
- */
-async function onConfirmDelete() {
-  // Spinner-funksjonalitet: Vis spinner på deleteConfirmYes-knappen
-  showSpinner(deleteConfirmYes, 'Sletter...');
-
+async function deleteChat(chatId) {
   try {
-    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}`, {
+    console.log("deleteChat: Starter sletting av chat:", chatId);
+    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`, {
       method: 'DELETE'
     });
-    if (!resp.ok) {
-      console.error("Feil ved sletting av chat:", resp.status, resp.statusText);
-      alert("Feil ved sletting av chat.");
-      throw new Error('Feil ved sletting av chat.');
+    
+    if (!response.ok) {
+      console.error("deleteChat: Feil ved sletting:", response.status, response.statusText);
+      throw new Error('Feil ved sletting av chat');
     }
-    const data = await resp.json();
-    alert(data.message);
+
+    console.log("deleteChat: Chat slettet:", chatId);
+    // Opprett ny chat etter sletting
+    currentChatId = await createNewChat();
+    console.log("deleteChat: Ny chat opprettet:", currentChatId);
+    
+    // Oppdater chat-selector og last inn den nye chatten
     await fetchChats();
-    clearChatMessages();
-    currentChatId = null;
-    selectedModel = null;
-    if (modelSelector) {
-      modelSelector.value = '';
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+      await loadChat(currentChatId);
     }
-    if (deleteConfirmation && overlay) {
-      deleteConfirmation.style.display = 'none';
-      overlay.style.display = 'none';
+
+    // Tøm meldingsvinduet
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
     }
   } catch (error) {
-    console.error("Feil ved sletting av chat:", error);
+    console.error("deleteChat: Feil:", error);
     alert("Feil ved sletting av chat.");
-  } finally {
-    // Spinner-funksjonalitet: Skjul spinner på deleteConfirmYes-knappen uansett utfallet
-    hideSpinner(deleteConfirmYes);
   }
 }
 
 /**
- * onCancelDelete - Avbryter sletting av chat
+ * onDeleteChat - Håndterer klikk på delete-chat-button
  */
-function onCancelDelete() {
-  if (deleteConfirmation && overlay) {
-    deleteConfirmation.style.display = 'none';
-    overlay.style.display = 'none';
+async function onDeleteChat() {
+  console.log("onDeleteChat: Starter sletting");
+  if (!currentChatId) {
+    console.log("onDeleteChat: Ingen aktiv chat å slette");
+    return;
+  }
+
+  try {
+    showSpinner(deleteChatButton);
+    await deleteChat(currentChatId);
+  } catch (error) {
+    console.error("onDeleteChat: Feil:", error);
+    alert("Feil ved sletting av chat.");
+  } finally {
+    hideSpinner(deleteChatButton);
   }
 }
 
@@ -1054,6 +1051,7 @@ function setupEventListeners() {
     newChatButton.addEventListener('click', onNewChat);
   }
   if (deleteChatButton) {
+    console.log("Setter opp event listener for delete-chat-button");
     deleteChatButton.addEventListener('click', onDeleteChat);
   }
   if (deleteConfirmYes) {
