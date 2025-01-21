@@ -764,7 +764,9 @@ async function onSetUrl(event) {
     }
 
     const data = await resp.json();
-    appendMessageToChat('system', data.message);
+    // Vis mer detaljert informasjon om hva som ble hentet
+    const message = `Lastet inn kontekst fra ${url}\nLagret som: ${data.filenames[0]}\nKontekst er nå tilgjengelig for chat.`;
+    appendMessageToChat('system', message);
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
