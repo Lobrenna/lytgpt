@@ -316,6 +316,9 @@ async function onSendMessage() {
       if (selectedModel) {
         formData.append('preferred_model', selectedModel);
       }
+      
+      // Legg til chat_id i formData
+      formData.append('chat_id', currentChatId);
 
       console.log("Sender long-context request med formData:", Object.fromEntries(formData));
 
@@ -382,6 +385,9 @@ async function onSendMessage() {
           if (selectedModel) {
             formData.append('preferred_model', selectedModel);
           }
+          
+          // Legg til chat_id i formData
+          formData.append('chat_id', currentChatId);
 
           const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
             method: 'POST',
