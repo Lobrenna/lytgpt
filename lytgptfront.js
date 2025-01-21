@@ -473,11 +473,19 @@ async function onNewChat() {
     console.log("Starter ny chat prosess...");
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Reset file upload form ved å erstatte hele elementet
-    const formBlock = document.querySelector('.form-block-2');
-    if (formBlock) {
+    // Reset model selector til første modell
+    if (modelSelector && modelSelector.options.length > 0) {
+      const firstModel = modelSelector.options[0].value;
+      modelSelector.value = firstModel;
+      selectedModel = firstModel;
+      console.log("Reset modell til første tilgjengelige:", firstModel);
+    }
+
+    // Reset file upload form - finn den riktige form-block-2 som inneholder file upload
+    const fileUploadForm = document.querySelector('.form-block-2:not(.newchat):not(.url)');
+    if (fileUploadForm) {
       console.log("Resetter file upload form");
-      formBlock.innerHTML = `
+      fileUploadForm.innerHTML = `
         <form id="email-form" name="email-form" data-name="Email Form" method="get" data-wf-page-id="67863dcfd7559d2800b3781f" data-wf-element-id="9486dd50-f29a-d0c0-89cb-39495fd4d8a8" aria-label="Email Form">
           <label for="chat-selector">Context file upload</label>
           <div class="w-file-upload">
@@ -524,7 +532,7 @@ async function onNewChat() {
       `;
       
       // Gjenopprett event listeners for det nye elementet
-      const newFileInput = formBlock.querySelector('.w-file-upload-input');
+      const newFileInput = fileUploadForm.querySelector('.w-file-upload-input');
       if (newFileInput) {
         newFileInput.addEventListener('change', (e) => {
           const uploadDiv = e.target.closest('.w-file-upload');
@@ -546,25 +554,10 @@ async function onNewChat() {
       chatInput.value = '';
     }
 
-    // Reset long context elementer
-    const longContextInput = document.querySelector('#long-context-input');
-    if (longContextInput) {
-      console.log("Resetter long context input");
-      longContextInput.value = '';
-    }
-
-    const longContextFileInput = document.querySelector('#long-context-file');
-    if (longContextFileInput) {
-      console.log("Resetter long context file input");
-      longContextFileInput.value = '';
-    }
-
-    // Reset selectedModel til første modell
-    if (modelSelector && modelSelector.options.length > 0) {
-      const firstModel = modelSelector.options[0].value;
-      modelSelector.value = firstModel;
-      selectedModel = firstModel;
-      console.log("Reset modell til første tilgjengelige:", firstModel);
+    // Reset URL input
+    const urlInput = document.querySelector('#url-input');
+    if (urlInput) {
+      urlInput.value = '';
     }
 
     console.log("Oppretter ny chat med modell:", selectedModel);
