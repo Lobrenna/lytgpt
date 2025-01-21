@@ -283,9 +283,15 @@ async function onSendMessage() {
         return;
     }
 
-    const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
+    const messageInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('send-button');
     
+    if (!messageInput) {
+        console.error('Kunne ikke finne chat input element');
+        return;
+    }
+
+    const message = messageInput.value.trim();
     if (!message) {
         showError("Meldingen kan ikke være tom");
         return;
@@ -293,40 +299,18 @@ async function onSendMessage() {
 
     // Disable input og knapp mens vi sender
     messageInput.disabled = true;
-    const sendButton = document.querySelector('button[data-send-message]');
     if (sendButton) sendButton.disabled = true;
 
     try {
-        // Sjekk om vi har en fil i context
-        const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
-        const hasContextFile = contextFileUpload && contextFileUpload.getAttribute('data-value');
-
-        let response;
-        
-        if (hasContextFile) {
-            // Send med context file
-            response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: message,
-                    context_file: contextFileUpload.getAttribute('data-value')
-                })
-            });
-        } else {
-            // Send uten context file
-            response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: message
-                })
-            });
-        }
+        const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
 
         if (!response.ok) {
             throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}`);
