@@ -274,65 +274,6 @@ async function sendMessage(chatId, message) {
   return await response.json();
 }
 
-
-async function onProcessLongContext() {
-  // Hent melding og filer fra brukerinput
-  const message = longContextInput.value.trim();
-  const files = longContextFileInput.files;
-  const preferredModel = preferredModelSelector.value;
-
-  if (!message || files.length === 0) {
-    alert("Vennligst skriv inn en melding og last opp minst én fil.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("message", message);
-  for (const file of files) {
-    formData.append("files", file);
-  }
-  if (preferredModel) {
-    formData.append("preferred_model", preferredModel);
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("Backend returnerte data:", data);
-
-    // Sjekk om chat_id er renamet
-    if (data.new_chat_id) {
-      console.log("Long-context Chat ID ble renamet til:", data.new_chat_id);
-      // Oppdater currentChatId
-      currentChatId = data.new_chat_id;
-      console.log("Oppdatert currentChatId til:", currentChatId);
-
-      // Oppdater chat-selector
-      await fetchChats();
-      if (chatSelector) {
-        chatSelector.value = currentChatId;
-        await loadChat(currentChatId);
-      }
-    } else {
-      // Vis responsen
-      appendMessageToChat('assistant', data.response);
-    }
-
-  } catch (error) {
-    console.error('Feil ved behandling av long-context:', error);
-    alert("Feil ved behandling av long-context.");
-  }
-}
-
-
 /**
  * onSendMessage - Håndterer sending av meldinger
  */
@@ -341,6 +282,14 @@ async function onSendMessage() {
 
   const message = chatInput.value.trim();
   
+  // 1. Vis brukerens melding først og tøm input
+  appendMessageToChat('user', renderMarkdown(message));
+  chatInput.value = '';
+
+  // 2. Vis "Genererer svar..." melding
+  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+  showSpinner(sendButton, 'Sender...');
+
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
   let hasFiles = false;
   const formData = new FormData();
@@ -429,53 +378,60 @@ async function onSendMessage() {
         const contextData = await contextResponse.json();
         
         if (contextData.context && contextData.context.trim()) {
-          // Last chatten på nytt bare hvis det finnes kontekst
-          await loadChat(currentChatId);
-          console.log("Chat lastet på nytt med eksisterende kontekst");
+          // Bruk long-context endepunktet hvis det finnes kontekst
+          if (selectedModel) {
+            formData.append('preferred_model', selectedModel);
+          }
+
+          const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+          }
+
+          data = await response.json();
+          
+          // Fjern "Genererer svar..." meldingen
+          if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+          }
+
+          // Vis modellinfo
+          const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+          appendMessageToChat('system', modelInfo);
+
+          // Formater og vis svaret med markdown
+          appendMessageToChat('assistant', renderMarkdown(data.response));
+
         } else {
-          console.log("Ingen kontekst funnet, fortsetter uten å laste chatten på nytt");
+          console.log("Ingen kontekst funnet, bruker vanlig chat");
+          data = await sendMessage(currentChatId, message);
+          
+          // Fjern "Genererer svar..." meldingen
+          if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+          }
+
+          // Formater og vis svaret med markdown
+          appendMessageToChat('assistant', renderMarkdown(data.response));
         }
       } catch (error) {
         console.warn("Kunne ikke sjekke kontekst:", error);
-      }
-
-      // 1. Vis brukerens melding først og tøm input
-      appendMessageToChat('user', renderMarkdown(message));
-      chatInput.value = '';
-
-      // 2. Vis "Genererer svar..." melding
-      const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-      showSpinner(sendButton, 'Sender...');
-
-      console.log("Sender vanlig melding til chat:", currentChatId);
-      data = await sendMessage(currentChatId, message);
-      console.log("Mottatt data fra vanlig chat:", {
-        new_chat_id: data.new_chat_id,
-        response_type: typeof data.response,
-        response_starts_with: data.response.substring(0, 100),
-        full_response: data.response
-      });
-
-      // Fjern "Genererer svar..." meldingen
-      if (generatingMessage && generatingMessage.parentNode) {
-        generatingMessage.parentNode.removeChild(generatingMessage);
-      }
-
-      // Håndter new_chat_id uten å laste chatten på nytt
-      if (data.new_chat_id && data.new_chat_id !== currentChatId) {
-        const oldChatId = currentChatId;
-        currentChatId = data.new_chat_id;
-        console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
+        // Fallback til vanlig chat
+        data = await sendMessage(currentChatId, message);
         
-        // Oppdater chat-selector uten å laste chatten
-        await fetchChats(false);
-        if (chatSelector) {
-          chatSelector.value = currentChatId;
+        // Fjern "Genererer svar..." meldingen
+        if (generatingMessage && generatingMessage.parentNode) {
+          generatingMessage.parentNode.removeChild(generatingMessage);
         }
-      }
 
-      // Formater og vis svaret med markdown
-      appendMessageToChat('assistant', renderMarkdown(data.response));
+        // Formater og vis svaret med markdown
+        appendMessageToChat('assistant', renderMarkdown(data.response));
+      }
     }
 
   } catch (error) {
