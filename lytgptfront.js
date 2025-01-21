@@ -742,14 +742,11 @@ async function onSetUrl() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        urls: [url],  // Server forventer en array av URLs
-        max_depth: 1  // Legg til max_depth parameter
+        urls: [url]  // Server forventer en array av URLs
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Server error details:", errorData);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
