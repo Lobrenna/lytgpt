@@ -278,68 +278,75 @@ async function sendMessage(chatId, message) {
  * onSendMessage - Håndterer sending av meldinger
  */
 async function onSendMessage() {
+  if (!chatInput || !chatInput.value.trim()) return;
+
+  const message = chatInput.value.trim();
+  
+  // Vis brukerens melding først
+  appendMessageToChat('user', renderMarkdown(message));
+  chatInput.value = '';
+
+  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+  showSpinner(sendButton, 'Sender...');
+
+  try {
+    // Vanlig chat uten filer
     if (!currentChatId) {
-        showError("Vennligst velg eller opprett en chat først");
-        return;
+      currentChatId = await createNewChat();
+      console.log("Opprettet ny chat med ID:", currentChatId);
     }
 
-    const messageInput = document.getElementById('chat-input');
-    const sendButton = document.getElementById('send-button');
-    
-    if (!messageInput) {
-        console.error('Kunne ikke finne chat input element');
-        return;
+    console.log("Sender vanlig melding til chat:", currentChatId);
+    const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: message })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const message = messageInput.value.trim();
-    if (!message) {
-        showError("Meldingen kan ikke være tom");
-        return;
+    const data = await response.json();
+    console.log("Mottatt data fra vanlig chat:", {
+      new_chat_id: data.new_chat_id,
+      response_type: typeof data.response,
+      response_starts_with: data.response.substring(0, 100),
+      full_response: data.response
+    });
+
+    // Fjern "Genererer svar..." meldingen
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
     }
 
-    // Disable input og knapp mens vi sender
-    messageInput.disabled = true;
-    if (sendButton) sendButton.disabled = true;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message: message
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Legg til meldingene i chat
-        appendMessageToChat({
-            role: 'user',
-            content: message
-        });
-        
-        appendMessageToChat({
-            role: 'assistant',
-            content: data.response
-        });
-
-        // Tøm input
-        messageInput.value = '';
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showError(`Kunne ikke sende melding: ${error.message}`);
-    } finally {
-        // Enable input og knapp igjen
-        messageInput.disabled = false;
-        if (sendButton) sendButton.disabled = false;
+    // Håndter new_chat_id uten å laste chatten på nytt
+    if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+      const oldChatId = currentChatId;
+      currentChatId = data.new_chat_id;
+      console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
+      
+      // Oppdater chat-selector uten å laste chatten
+      await fetchChats(false);
+      if (chatSelector) {
+        chatSelector.value = currentChatId;
+      }
     }
+
+    // Formater og vis svaret med markdown
+    appendMessageToChat('assistant', renderMarkdown(data.response));
+
+  } catch (error) {
+    console.error('Feil ved sending av melding:', error);
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
+    }
+    appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+  } finally {
+    hideSpinner(sendButton);
+  }
 }
 
 /**
@@ -615,75 +622,49 @@ function showError(message) {
 }
 
 async function onSetUrl() {
-    if (!currentChatId) {
-        showError("Vennligst velg eller opprett en chat først");
-        return;
-    }
+  showSpinner(setUrlButton, 'Henter...');
 
-    const url = urlInput.value.trim();
-    if (!url) {
-        showError("Vennligst skriv inn en URL");
-        return;
-    }
-
-    // Vis spinner på knappen
-    const originalButtonText = setUrlButton.textContent;
-    setUrlButton.innerHTML = '<div class="spinner"></div>Scraping...';
-    setUrlButton.disabled = true;
-
+  if (!currentChatId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ url: url })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Sjekk at vi har fått context_file i responsen
-        if (!data.context_file) {
-            throw new Error('Ingen filnavn mottatt fra server');
-        }
-        
-        // Finn Context file upload form block (den andre form-block-2 med file upload)
-        const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
-        
-        // Sett data-value attributtet med filnavnet vi fikk fra backend
-        contextFileUpload.setAttribute('data-value', data.context_file);
-        
-        // Trigger success state i Webflow UI
-        const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
-        const uploadDefault = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-default');
-        
-        uploadDefault.style.display = 'none';
-        uploadSuccess.style.display = 'inline-block';
-        uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
-        
-        // Legg til melding i chat
-        if (typeof data.message === 'string') {
-            appendMessageToChat({
-                role: 'assistant',
-                content: data.message
-            });
-        }
-        
-        // Clear URL input
-        urlInput.value = '';
-        
+      currentChatId = await createNewChat();
+      console.log("Ny chat opprettet med ID:", currentChatId);
     } catch (error) {
-        console.error('Error:', error);
-        showError("Kunne ikke hente tekst fra URL");
-    } finally {
-        // Gjenopprett original knapp tekst og enable knappen
-        setUrlButton.innerHTML = originalButtonText;
-        setUrlButton.disabled = false;
+      console.error("Feil ved opprettelse av ny chat:", error);
+      alert("Feil ved opprettelse av ny chat.");
+      hideSpinner(setUrlButton);
+      return;
     }
+  }
+
+  const url = urlInput.value.trim();
+  if (!url) {
+    alert("Vennligst skriv inn en URL.");
+    hideSpinner(setUrlButton);
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url: url })
+    });
+
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    console.log("URL scrapet og fil lastet:", data.context_file);
+    urlInput.value = '';
+  } catch (error) {
+    console.error("Feil ved innstilling av URL:", error);
+    alert("Feil ved innstilling av URL.");
+  } finally {
+    hideSpinner(setUrlButton);
+  }
 }
 
 /**
