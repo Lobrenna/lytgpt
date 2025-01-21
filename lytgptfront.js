@@ -366,6 +366,8 @@ async function onSendMessage() {
         formData.append('preferred_model', selectedModel);
       }
 
+      console.log("Sender long-context request med formData:", Object.fromEntries(formData));
+
       const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
         method: 'POST',
         body: formData
@@ -377,6 +379,15 @@ async function onSendMessage() {
       }
 
       data = await response.json();
+      console.log("Mottatt data fra long-context:", {
+        new_chat_id: data.new_chat_id,
+        selected_model: data.selected_model,
+        context_length: data.context_length,
+        estimated_tokens: data.estimated_tokens,
+        response_type: typeof data.response,
+        response_starts_with: data.response.substring(0, 100),
+        full_response: data.response
+      });
 
       // Fjern "Genererer svar..." meldingen
       if (generatingMessage && generatingMessage.parentNode) {
@@ -411,7 +422,14 @@ async function onSendMessage() {
         console.log("Opprettet ny chat med ID:", currentChatId);
       }
 
+      console.log("Sender vanlig melding til chat:", currentChatId);
       data = await sendMessage(currentChatId, message);
+      console.log("Mottatt data fra vanlig chat:", {
+        new_chat_id: data.new_chat_id,
+        response_type: typeof data.response,
+        response_starts_with: data.response.substring(0, 100),
+        full_response: data.response
+      });
 
       // Fjern "Genererer svar..." meldingen
       if (generatingMessage && generatingMessage.parentNode) {
