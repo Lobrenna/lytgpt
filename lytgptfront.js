@@ -729,14 +729,13 @@ async function onSetUrl(event) {
 
   try {
     // Først scraper vi URL-en
+    const formData = new FormData();
+    formData.append('url', url);
+    formData.append('max_depth', '1');
+
     const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        url: url
-      })
+      body: formData
     });
 
     if (!resp.ok) {
