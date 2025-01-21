@@ -473,15 +473,30 @@ async function onNewChat() {
     console.log("Starter ny chat prosess...");
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Sett en flag i sessionStorage for å indikere at dette er en new chat reload
-    sessionStorage.setItem('isNewChatReload', 'true');
-    
-    // Reload hele siden
-    window.location.reload();
+    // Tøm chat-messages og vis velkomstmelding
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
+      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+    }
+
+    // Hent første tilgjengelige modell
+    if (modelSelector && modelSelector.options.length > 0) {
+      const firstModel = modelSelector.options[0].value;
+      modelSelector.value = firstModel;
+      selectedModel = firstModel;
+      console.log("Satt aktiv modell til:", firstModel);
+    }
+
+    // Reset currentChatId
+    currentChatId = null;
+
+    // Oppdater chat selector
+    await fetchChats(false);
 
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
+  } finally {
     hideSpinner(newChatButton);
   }
 }
