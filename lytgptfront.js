@@ -476,8 +476,52 @@ async function onNewChat() {
     // Reset file upload form ved å erstatte hele elementet
     const formBlock = document.querySelector('.form-block-2');
     if (formBlock) {
-      const originalForm = formBlock.innerHTML;
-      formBlock.innerHTML = originalForm;
+      console.log("Resetter file upload form");
+      formBlock.innerHTML = `
+        <form id="email-form" name="email-form" data-name="Email Form" method="get" data-wf-page-id="67863dcfd7559d2800b3781f" data-wf-element-id="9486dd50-f29a-d0c0-89cb-39495fd4d8a8" aria-label="Email Form">
+          <label for="chat-selector">Context file upload</label>
+          <div class="w-file-upload">
+            <div class="w-file-upload-default">
+              <input class="w-file-upload-input" accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl" name="file" data-name="File" aria-hidden="true" type="file" id="file" tabindex="-1">
+              <label for="file" role="button" tabindex="0" id="upload-files" class="button-3 w-file-upload-label">
+                <div class="w-icon-file-upload-icon"></div>
+                <div class="text w-inline-block">Upload File</div>
+              </label>
+              <div class="w-file-upload-info">Max file size 10MB.</div>
+            </div>
+            <div tabindex="-1" class="w-file-upload-uploading w-hidden">
+              <div class="w-file-upload-uploading-btn">
+                <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" aria-hidden="true">
+                  <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
+                  <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
+                    <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
+                  </path>
+                </svg>
+                <div class="w-inline-block">Uploading...</div>
+              </div>
+            </div>
+            <div tabindex="-1" class="w-file-upload-success w-hidden">
+              <div class="w-file-upload-file">
+                <div class="w-file-upload-file-name">fileuploaded.jpg</div>
+                <div aria-label="Remove file" role="button" tabindex="0" class="w-file-remove-link">
+                  <div class="w-icon-file-upload-remove"></div>
+                </div>
+              </div>
+            </div>
+            <div tabindex="-1" class="w-file-upload-error w-hidden">
+              <div class="w-file-upload-error-msg" data-w-size-error="Upload failed. Max size for files is 10 MB." data-w-type-error="Upload failed. Invalid file type." data-w-generic-error="Upload failed. Something went wrong. Please retry.">
+                Upload failed. Max size for files is 10 MB.
+              </div>
+            </div>
+          </div>
+        </form>
+        <div class="w-form-done" tabindex="-1" role="region" aria-label="Email Form success">
+          <div>Thank you! Your submission has been received!</div>
+        </div>
+        <div class="w-form-fail" tabindex="-1" role="region" aria-label="Email Form failure">
+          <div>Oops! Something went wrong while submitting the form.</div>
+        </div>
+      `;
       
       // Gjenopprett event listeners for det nye elementet
       const newFileInput = formBlock.querySelector('.w-file-upload-input');
@@ -515,6 +559,14 @@ async function onNewChat() {
       longContextFileInput.value = '';
     }
 
+    // Reset selectedModel til første modell
+    if (modelSelector && modelSelector.options.length > 0) {
+      const firstModel = modelSelector.options[0].value;
+      modelSelector.value = firstModel;
+      selectedModel = firstModel;
+      console.log("Reset modell til første tilgjengelige:", firstModel);
+    }
+
     console.log("Oppretter ny chat med modell:", selectedModel);
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
@@ -529,14 +581,6 @@ async function onNewChat() {
     // Tøm chat-messages
     if (chatMessages) {
       chatMessages.innerHTML = '';
-    }
-
-    // Reset selectedModel til første modell
-    if (modelSelector && modelSelector.options.length > 0) {
-      const firstModel = modelSelector.options[0].value;
-      modelSelector.value = firstModel;
-      selectedModel = firstModel;
-      console.log("Reset modell til første tilgjengelige:", firstModel);
     }
 
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
