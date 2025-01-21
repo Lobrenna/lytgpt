@@ -359,6 +359,7 @@ async function onSendMessage() {
 
   try {
     let data;
+    let responseShown = false; // Ny flagg for å spore om svaret er vist
 
     if (hasFiles) {
       if (selectedModel) {
@@ -395,11 +396,13 @@ async function onSendMessage() {
         }
       }
 
-      // Vis kun modellinfo og svar én gang
-      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-      appendMessageToChat('assistant', data.response);
-      return; // Avslutt funksjonen her for å unngå dobbelt svar
+      // Vis kun modellinfo og svar hvis det ikke er vist ennå
+      if (!responseShown) {
+        const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+        appendMessageToChat('system', modelInfo);
+        appendMessageToChat('assistant', data.response);
+        responseShown = true;
+      }
 
     } else {
       // Vanlig chat uten filer
@@ -428,13 +431,15 @@ async function onSendMessage() {
         }
       }
 
-      // Vis responsen
-      appendMessageToChat('assistant', data.response);
+      // Vis responsen hvis den ikke er vist ennå
+      if (!responseShown) {
+        appendMessageToChat('assistant', data.response);
+        responseShown = true;
+      }
     }
 
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
-    // Fjern den "Genererer svar..." meldingen
     if (generatingMessage && generatingMessage.parentNode) {
       generatingMessage.parentNode.removeChild(generatingMessage);
     }
