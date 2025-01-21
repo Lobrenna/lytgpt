@@ -748,8 +748,32 @@ async function onSetUrl(event) {
     urlInput.value = '';
 
     // Last chatten på nytt for å få med konteksten
-    await loadChat(currentChatId);
-    console.log("Chat lastet på nytt med oppdatert kontekst");
+    try {
+      const contextResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context`);
+      const contextData = await contextResponse.json();
+      
+      if (contextData.context && contextData.context.trim()) {
+        // Bruk long-context endepunktet hvis det finnes kontekst
+        const chatFormData = new FormData();
+        chatFormData.append('chat_id', currentChatId);
+        if (selectedModel) {
+          chatFormData.append('preferred_model', selectedModel);
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
+          method: 'POST',
+          body: chatFormData
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        console.log("Chat oppdatert med long-context");
+      }
+    } catch (error) {
+      console.warn("Kunne ikke oppdatere chat med long-context:", error);
+    }
 
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
