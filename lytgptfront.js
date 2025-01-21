@@ -499,12 +499,13 @@ async function onNewChat() {
       chatInput.value = '';
     }
 
-    // Reset long context input hvis det finnes
+    // Reset long context input og file input hvis de finnes
+    const longContextInput = document.querySelector('#long-context-input');
     if (longContextInput) {
       longContextInput.value = '';
     }
 
-    // Reset long context file input hvis det finnes
+    const longContextFileInput = document.querySelector('#long-context-file');
     if (longContextFileInput) {
       longContextFileInput.value = '';
     }
