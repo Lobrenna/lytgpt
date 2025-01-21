@@ -473,94 +473,16 @@ async function onNewChat() {
     console.log("Starter ny chat prosess...");
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Reset model selector til første modell
-    if (modelSelector && modelSelector.options.length > 0) {
-      const firstModel = modelSelector.options[0].value;
-      modelSelector.value = firstModel;
-      selectedModel = firstModel;
-      console.log("Reset modell til første tilgjengelige:", firstModel);
-    }
-
-    // Finn form-block-2 som inneholder "Context file upload" label
-    const fileUploadBlocks = document.querySelectorAll('.form-block-2');
-    const contextFileUploadBlock = Array.from(fileUploadBlocks).find(block => {
-      const label = block.querySelector('label');
-      return label && label.textContent === 'Context file upload';
-    });
-
-    if (contextFileUploadBlock) {
-      const form = contextFileUploadBlock.querySelector('form');
-      if (form) {
-        // Finn alle file upload divs
-        const fileUploadDivs = form.querySelectorAll('.w-file-upload');
-        console.log("Fant", fileUploadDivs.length, "file upload elementer");
-
-        // Behold kun det første elementet
-        if (fileUploadDivs.length > 0) {
-          const firstUploadDiv = fileUploadDivs[0];
-          
-          // Fjern alle andre file upload divs
-          for (let i = fileUploadDivs.length - 1; i > 0; i--) {
-            console.log("Fjerner ekstra file upload element");
-            fileUploadDivs[i].remove();
-          }
-
-          // Reset det første elementet
-          const defaultView = firstUploadDiv.querySelector('.w-file-upload-default');
-          const successView = firstUploadDiv.querySelector('.w-file-upload-success');
-          const fileInput = firstUploadDiv.querySelector('.w-file-upload-input');
-
-          if (defaultView) {
-            defaultView.classList.remove('w-hidden');
-            defaultView.style.display = '';
-          }
-          if (successView) {
-            successView.classList.add('w-hidden');
-            successView.style.display = 'none';
-          }
-          if (fileInput) {
-            fileInput.value = '';
-            fileInput.removeAttribute('data-value');
-          }
-
-          // Reset file name
-          const fileNameDiv = firstUploadDiv.querySelector('.w-file-upload-file-name');
-          if (fileNameDiv) {
-            fileNameDiv.textContent = '';
-          }
-        }
-      }
-    }
-
-    // Reset URL input
-    const urlInput = document.querySelector('#url-input');
-    if (urlInput) {
-      urlInput.value = '';
-    }
-
     console.log("Oppretter ny chat med modell:", selectedModel);
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
-    currentChatId = chatId;
-    console.log("Oppdatert currentChatId til:", currentChatId);
-
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-    }
-
-    // Tøm chat-messages
-    if (chatMessages) {
-      chatMessages.innerHTML = '';
-    }
-
-    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat prosess fullført");
+    
+    // Reload hele siden
+    window.location.reload();
 
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
-  } finally {
     hideSpinner(newChatButton);
   }
 }
