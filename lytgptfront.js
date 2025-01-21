@@ -497,6 +497,29 @@ async function onNewChat() {
       chatMessages.innerHTML = '';
     }
 
+    // Nullstill file uploads
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    fileInputs.forEach(input => {
+      input.value = '';
+    });
+    
+    // Fjern eventuelle "success" indikatorer for filopplasting
+    const successElements = document.querySelectorAll('.w-file-upload-success');
+    successElements.forEach(element => {
+      element.style.display = 'none';
+    });
+    
+    // Vis default upload state
+    const defaultElements = document.querySelectorAll('.w-file-upload-default');
+    defaultElements.forEach(element => {
+      element.style.display = 'block';
+    });
+
+    // Nullstill URL input
+    if (urlInput) {
+      urlInput.value = '';
+    }
+
     // Legg til velkomstmelding
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     console.log("Ny chat opprettet med ID:", currentChatId);
