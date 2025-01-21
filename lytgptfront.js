@@ -323,8 +323,9 @@ async function onSendMessage() {
     }
   });
 
-  // Vis brukerens melding
+  // Vis brukerens melding og tøm input-feltet umiddelbart
   appendMessageToChat('user', message);
+  chatInput.value = '';  // Flyttet hit fra slutten av funksjonen
   appendMessageToChat('assistant', 'Genererer svar...');
 
   // Spinner-funksjonalitet: Vis spinner på sendButton
@@ -436,7 +437,7 @@ async function onSendMessage() {
     }
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
   } finally {
-    // Spinner-funksjonalitet: Skjul spinner på sendButton
+    // Spinner-funksjonalitet: Skjul spinner på sendButton uansett utfallet
     hideSpinner(sendButton);
   }
 }
