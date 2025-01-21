@@ -221,7 +221,18 @@ async function createNewChat() {
     }
     const data = await response.json();
     console.log("createNewChat: Mottatt data fra server:", data);
-    return data.chat_id;
+    
+    // Sjekk strukturen på data-objektet
+    if (data.title) {
+      console.log("createNewChat: Bruker data.title som chat_id:", data.title);
+      return data.title;
+    } else if (data.chat_id) {
+      console.log("createNewChat: Bruker data.chat_id:", data.chat_id);
+      return data.chat_id;
+    } else {
+      console.error("createNewChat: Kunne ikke finne chat_id i responsen:", data);
+      throw new Error('Mangler chat_id i respons fra server');
+    }
   } catch (error) {
     console.error('createNewChat: Feil:', error);
     throw error;
@@ -824,26 +835,29 @@ async function fetchChats(autoLoad = true) {
       console.log("fetchChats: Oppdaterer chat selector");
       chatSelector.innerHTML = '';
       chats.forEach(chat => {
-        console.log("fetchChats: Legger til chat:", chat);
+        const chatTitle = typeof chat === 'string' ? chat : chat.title;
+        console.log("fetchChats: Legger til chat:", chatTitle);
         const option = document.createElement('option');
-        option.value = chat.title;
-        option.textContent = chat.title;
+        option.value = chatTitle;
+        option.textContent = chatTitle;
         chatSelector.appendChild(option);
       });
 
       // Hvis currentChatId ikke finnes i listen, reset det
-      const chatExists = chats.some(chat => chat.title === currentChatId);
+      const chatExists = chats.some(chat => {
+        const chatTitle = typeof chat === 'string' ? chat : chat.title;
+        return chatTitle === currentChatId;
+      });
       console.log("fetchChats: Sjekker currentChatId:", currentChatId, "Eksisterer:", chatExists);
       
-      if (!chatExists) {
-        console.log("fetchChats: currentChatId finnes ikke i listen, resetter");
-        currentChatId = null;
-      }
-
-      // Last chat kun hvis autoLoad er true
-      if (autoLoad && currentChatId) {
-        console.log("fetchChats: Laster aktiv chat:", currentChatId);
-        await loadChat(currentChatId);
+      if (currentChatId && chatExists) {
+        console.log("fetchChats: Setter aktivt valg til currentChatId:", currentChatId);
+        chatSelector.value = currentChatId;
+        if (autoLoad) {
+          await loadChat(currentChatId);
+        }
+      } else {
+        console.log("fetchChats: Ingen gyldig currentChatId funnet");
       }
     } else {
       console.error("fetchChats: chatSelector ikke funnet i DOM");
