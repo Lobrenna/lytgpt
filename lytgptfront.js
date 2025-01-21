@@ -359,7 +359,6 @@ async function onSendMessage() {
 
   try {
     let data;
-    let responseShown = false; // Ny flagg for å spore om svaret er vist
 
     if (hasFiles) {
       if (selectedModel) {
@@ -400,20 +399,17 @@ async function onSendMessage() {
         currentChatId = data.new_chat_id;
         console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
         
-        // Oppdater chat-selector uten å laste chatten på nytt
-        await fetchChats();
+        // Oppdater chat-selector uten å laste chatten
+        await fetchChats(false);
         if (chatSelector) {
           chatSelector.value = currentChatId;
         }
       }
 
-      // Vis kun modellinfo og svar hvis det ikke er vist ennå
-      if (!responseShown) {
-        const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-        appendMessageToChat('system', modelInfo);
-        appendMessageToChat('assistant', data.response);
-        responseShown = true;
-      }
+      // Vis kun modellinfo og svar
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+      appendMessageToChat('assistant', data.response);
 
     } else {
       // Vanlig chat uten filer
@@ -443,17 +439,14 @@ async function onSendMessage() {
         console.log("Oppdatert currentChatId fra", oldChatId, "til:", currentChatId);
         
         // Oppdater chat-selector uten å laste chatten på nytt
-        await fetchChats();
+        await fetchChats(false);
         if (chatSelector) {
           chatSelector.value = currentChatId;
         }
       }
 
       // Vis responsen hvis den ikke er vist ennå
-      if (!responseShown) {
-        appendMessageToChat('assistant', data.response);
-        responseShown = true;
-      }
+      appendMessageToChat('assistant', data.response);
     }
 
   } catch (error) {
@@ -773,45 +766,32 @@ async function fetchModels() {
 /**
  * fetchChats - Henter tilgjengelige chats fra backend
  */
-async function fetchChats() {
+async function fetchChats(autoLoad = true) {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
+    if (!response.ok) throw new Error('Feil ved henting av chats');
     const chats = await response.json();
-    
-    if (!chatSelector) {
-      console.error("Chat selector not found");
-      return;
-    }
-    
-    // Tøm eksisterende options
-    chatSelector.innerHTML = '';
-    
-    // Legg til "Ny chat" option
-    const newChatOption = document.createElement('option');
-    newChatOption.value = "new";
-    newChatOption.textContent = "Ny chat";
-    chatSelector.appendChild(newChatOption);
-    
-    // Legg til hver chat som en option
-    chats.forEach(chat => {
-      const option = document.createElement('option');
-      option.value = chat; // Sett verdien til chat-tittelen (unik ID)
-      option.textContent = chat; // Sett teksten til chat-tittelen
-      chatSelector.appendChild(option);
-    });
-
     console.log("Hentet chats:", chats);
 
-    // Sett current chat hvis den finnes i listen
-    if (currentChatId && chats.includes(currentChatId)) {
-      chatSelector.value = currentChatId;
-      await loadChat(currentChatId);
-    } else {
-      console.log("currentChatId finnes ikke i listen over chats.");
+    if (chatSelector) {
+      chatSelector.innerHTML = '';
+      chats.forEach(chat => {
+        const option = document.createElement('option');
+        option.value = chat.title;
+        option.textContent = chat.title;
+        chatSelector.appendChild(option);
+      });
+
+      // Hvis currentChatId ikke finnes i listen, reset det
+      if (!chats.some(chat => chat.title === currentChatId)) {
+        console.log("currentChatId finnes ikke i listen over chats.");
+        currentChatId = null;
+      }
+
+      // Last chat kun hvis autoLoad er true
+      if (autoLoad && currentChatId) {
+        await loadChat(currentChatId);
+      }
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
