@@ -23,8 +23,27 @@ let currentChatId = null;
 let selectedModel = null;
 
 // Konfigurer marked.js for å integrere med Prism.js
+const renderer = new marked.Renderer();
+
+// Tilpass renderer for å unngå overflødige p-tagger
+renderer.listitem = function(text) {
+  // Fjern p-tagger fra listeelementer hvis de starter og slutter med dem
+  if (text.startsWith('<p>') && text.endsWith('</p>')) {
+    text = text.slice(3, -4);
+  }
+  return `<li>${text}</li>`;
+};
+
+renderer.paragraph = function(text) {
+  // Unngå å wrappe enkle linjer i p-tagger hvis de er del av en liste
+  if (text.includes('<ul>') || text.includes('<ol>')) {
+    return text;
+  }
+  return `<p>${text}</p>`;
+};
+
 marked.setOptions({
-  renderer: new marked.Renderer(),
+  renderer: renderer,
   gfm: true,
   breaks: true,
   headerIds: false,
@@ -35,23 +54,6 @@ marked.setOptions({
     } else {
       return Prism.highlight(code, Prism.languages.javascript, 'javascript');
     }
-  },
-  // Tilpass renderer for å unngå overflødige p-tagger
-  renderer: {
-    listitem(text) {
-      // Fjern p-tagger fra listeelementer hvis de starter og slutter med dem
-      if (text.startsWith('<p>') && text.endsWith('</p>')) {
-        text = text.slice(3, -4);
-      }
-      return `<li>${text}</li>`;
-    },
-    paragraph(text) {
-      // Unngå å wrappe enkle linjer i p-tagger hvis de er del av en liste
-      if (text.includes('<ul>') || text.includes('<ol>')) {
-        return text;
-      }
-      return `<p>${text}</p>`;
-    }
   }
 });
 
@@ -61,6 +63,11 @@ marked.setOptions({
  *  - Returnerer ferdig HTML med forbedret formatering
  */
 function renderMarkdown(markdownText) {
+  if (typeof markdownText !== 'string') {
+    console.warn('Invalid markdown input:', markdownText);
+    return '';
+  }
+  
   let html = marked.parse(markdownText);
   
   // Fjern eventuelle gjenværende doble linjeskift
