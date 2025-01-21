@@ -328,10 +328,6 @@ async function onSendMessage() {
 
   const message = chatInput.value.trim();
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
-
-  console.log("Alle file inputs funnet:", fileInputs.length);
-
-  // Samle alle filer som er valgt
   let hasFiles = false;
   const formData = new FormData();
   formData.append('message', message);
@@ -342,42 +338,32 @@ async function onSendMessage() {
     const uploadDiv = input.closest('.w-file-upload');
     const successView = uploadDiv?.querySelector('.w-file-upload-success');
 
-    // Sjekk om filen er valgt (success view er synlig)
     if (input.files && 
         input.files[0] && 
         successView && 
         !successView.classList.contains('w-hidden')) {
 
       fileCount++;
-      console.log(`Legger til fil ${fileCount}:`, input.files[0].name);
       formData.append('files', input.files[0]);
       hasFiles = true;
     }
   });
 
-  // Vis brukerens melding og tøm input-feltet umiddelbart
+  // Vis ALLTID brukerens melding
   appendMessageToChat('user', message);
-  chatInput.value = '';  // Flyttet hit fra slutten av funksjonen
+  chatInput.value = '';
   appendMessageToChat('assistant', 'Genererer svar...');
 
-  // Spinner-funksjonalitet: Vis spinner på sendButton
   showSpinner(sendButton, 'Sender...');
 
   try {
     let data;
 
-    // Sjekk om vi har filer og skal bruke long-context
     if (hasFiles) {
       console.log("Sender request med filer til long-context endpoint");
 
       if (selectedModel) {
-        console.log("Legger til modell:", selectedModel);
         formData.append('preferred_model', selectedModel);
-      }
-
-      // Debug: Vis innholdet i FormData
-      for (let pair of formData.entries()) {
-        console.log('FormData innhold:', pair[0], pair[1]);
       }
 
       const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
@@ -385,22 +371,16 @@ async function onSendMessage() {
         body: formData
       });
 
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Response error data:", errorData);
         throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
       }
 
       data = await response.json();
 
-      console.log("Backend returnerte data:", data);
-
       // Fjern "Genererer svar..." meldingen
       chatMessages.removeChild(chatMessages.lastChild);
 
-      // Sjekk om chat_id er renamet
       if (data.new_chat_id) {
         console.log("Chat ID ble renamet til:", data.new_chat_id);
         // Oppdater currentChatId
@@ -414,16 +394,11 @@ async function onSendMessage() {
           await loadChat(currentChatId);
         }
       } else {
-        // Vis modellinfo og svar
+        // Vis kun modellinfo og svar, ikke konteksten
         const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
         appendMessageToChat('system', modelInfo);
         appendMessageToChat('assistant', data.response);
       }
-
-      // Tøm chat input
-      chatInput.value = '';
-
-      // IKKE fjern file uploads her - la brukeren fjerne dem manuelt
 
     } else {
       // Vanlig chat uten filer
