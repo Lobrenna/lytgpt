@@ -735,6 +735,11 @@ async function onSetUrl() {
     return;
   }
 
+  // Vis spinner på knappen
+  const originalButtonText = setUrlButton.textContent;
+  setUrlButton.innerHTML = '<div class="w-icon-file-upload-uploading"></div>';
+  setUrlButton.disabled = true;
+
   try {
     const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
       method: 'POST',
@@ -750,8 +755,8 @@ async function onSetUrl() {
 
     const data = await response.json();
     
-    // Sjekk at vi har fått filename i responsen
-    if (!data.filename) {
+    // Sjekk at vi har fått context_file i responsen
+    if (!data.context_file) {
       throw new Error('Ingen filnavn mottatt fra server');
     }
     
@@ -759,7 +764,7 @@ async function onSetUrl() {
     const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
     
     // Sett data-value attributtet med filnavnet vi fikk fra backend
-    contextFileUpload.setAttribute('data-value', data.filename);
+    contextFileUpload.setAttribute('data-value', data.context_file);
     
     // Trigger success state i Webflow UI
     const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
@@ -767,7 +772,7 @@ async function onSetUrl() {
     
     uploadDefault.style.display = 'none';
     uploadSuccess.style.display = 'inline-block';
-    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.filename;
+    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
     
     // Clear URL input
     urlInput.value = '';
@@ -775,6 +780,10 @@ async function onSetUrl() {
   } catch (error) {
     console.error('Error:', error);
     showError("Kunne ikke hente tekst fra URL");
+  } finally {
+    // Gjenopprett original knapp tekst og enable knappen
+    setUrlButton.innerHTML = originalButtonText;
+    setUrlButton.disabled = false;
   }
 }
 
