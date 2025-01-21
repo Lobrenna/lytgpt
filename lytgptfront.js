@@ -711,6 +711,18 @@ if (urlInput && setUrlButton) {
   });
 }
 
+// Hjelpefunksjon for å vise feilmeldinger
+function showError(message) {
+  const errorElement = document.querySelector('.w-form-fail');
+  if (errorElement) {
+    errorElement.style.display = 'block';
+    errorElement.querySelector('div').textContent = message;
+    setTimeout(() => {
+      errorElement.style.display = 'none';
+    }, 3000);
+  }
+}
+
 async function onSetUrl() {
   if (!currentChatId) {
     showError("Vennligst velg eller opprett en chat først");
@@ -738,11 +750,16 @@ async function onSetUrl() {
 
     const data = await response.json();
     
+    // Sjekk at vi har fått filename i responsen
+    if (!data.filename) {
+      throw new Error('Ingen filnavn mottatt fra server');
+    }
+    
     // Finn Context file upload form block (den andre form-block-2 med file upload)
     const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
     
     // Sett data-value attributtet med filnavnet vi fikk fra backend
-    contextFileUpload.setAttribute('data-value', data.files[0]);
+    contextFileUpload.setAttribute('data-value', data.filename);
     
     // Trigger success state i Webflow UI
     const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
@@ -750,7 +767,7 @@ async function onSetUrl() {
     
     uploadDefault.style.display = 'none';
     uploadSuccess.style.display = 'inline-block';
-    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.files[0];
+    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.filename;
     
     // Clear URL input
     urlInput.value = '';
