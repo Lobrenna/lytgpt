@@ -477,6 +477,9 @@ async function onNewChat() {
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
     
+    // Vent på at chats er oppdatert
+    await fetchChats();
+    
     // Reload hele siden
     window.location.reload();
 
