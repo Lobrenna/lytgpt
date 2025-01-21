@@ -615,73 +615,75 @@ function showError(message) {
 }
 
 async function onSetUrl() {
-  if (!currentChatId) {
-    showError("Vennligst velg eller opprett en chat først");
-    return;
-  }
-
-  const url = urlInput.value.trim();
-  if (!url) {
-    showError("Vennligst skriv inn en URL");
-    return;
-  }
-
-  // Vis spinner på knappen
-  const originalButtonText = setUrlButton.textContent;
-  setUrlButton.innerHTML = '<div class="spinner"></div>Scraping...';
-  setUrlButton.disabled = true;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ url: url })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!currentChatId) {
+        showError("Vennligst velg eller opprett en chat først");
+        return;
     }
 
-    const data = await response.json();
-    
-    // Sjekk at vi har fått context_file i responsen
-    if (!data.context_file) {
-      throw new Error('Ingen filnavn mottatt fra server');
+    const url = urlInput.value.trim();
+    if (!url) {
+        showError("Vennligst skriv inn en URL");
+        return;
     }
-    
-    // Finn Context file upload form block
-    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
-    if (!contextFileUpload) {
-      console.log('Kunne ikke finne file upload element');
-      return;
+
+    // Vis spinner på knappen
+    const originalButtonText = setUrlButton.textContent;
+    setUrlButton.innerHTML = '<div class="spinner"></div>Scraping...';
+    setUrlButton.disabled = true;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url: url })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Sjekk at vi har fått context_file i responsen
+        if (!data.context_file) {
+            throw new Error('Ingen filnavn mottatt fra server');
+        }
+        
+        // Finn Context file upload form block (den andre form-block-2 med file upload)
+        const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
+        
+        // Sett data-value attributtet med filnavnet vi fikk fra backend
+        contextFileUpload.setAttribute('data-value', data.context_file);
+        
+        // Trigger success state i Webflow UI
+        const uploadSuccess = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-success');
+        const uploadDefault = contextFileUpload.closest('.w-file-upload').querySelector('.w-file-upload-default');
+        
+        uploadDefault.style.display = 'none';
+        uploadSuccess.style.display = 'inline-block';
+        uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
+        
+        // Legg til melding i chat
+        if (typeof data.message === 'string') {
+            appendMessageToChat({
+                role: 'assistant',
+                content: data.message
+            });
+        }
+        
+        // Clear URL input
+        urlInput.value = '';
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showError("Kunne ikke hente tekst fra URL");
+    } finally {
+        // Gjenopprett original knapp tekst og enable knappen
+        setUrlButton.innerHTML = originalButtonText;
+        setUrlButton.disabled = false;
     }
-    
-    // Oppdater file upload UI
-    const uploadWrapper = contextFileUpload.closest('.w-file-upload');
-    const uploadSuccess = uploadWrapper.querySelector('.w-file-upload-success');
-    const uploadDefault = uploadWrapper.querySelector('.w-file-upload-default');
-    
-    // Sett filnavn og vis success state
-    uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
-    uploadDefault.style.display = 'none';
-    uploadSuccess.style.display = 'inline-block';
-    
-    // Clear URL input
-    urlInput.value = '';
-    
-    // Logg suksess til console i stedet for chat
-    console.log('URL scrapet og fil lastet:', data.context_file);
-    
-  } catch (error) {
-    console.error('Error:', error);
-    showError("Kunne ikke hente tekst fra URL");
-  } finally {
-    // Gjenopprett original knapp tekst og enable knappen
-    setUrlButton.innerHTML = originalButtonText;
-    setUrlButton.disabled = false;
-  }
 }
 
 /**
