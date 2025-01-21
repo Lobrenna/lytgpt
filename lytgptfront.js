@@ -202,32 +202,24 @@ function clearChatMessages() {
 }
 
 /**
- * createNewChat - Oppretter en ny chat via backend
- * @returns {string} - Den nye chat-ID-en
+ * createNewChat - Oppretter en ny chat på backend
+ * @returns {Promise<string>} - ID til den nye chatten
  */
 async function createNewChat() {
   try {
-    console.log("Oppretter ny chat med modell:", selectedModel);
-
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        title: "Ny_chat",  // Dette kan være midlertidig og blir renamet senere
-        model: selectedModel 
-      })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ model: selectedModel })
     });
-
-    if (!response.ok) {
-      console.error("Feil ved opprettelse av ny chat:", response.status, response.statusText);
-      throw new Error("Feil ved opprettelse av ny chat.");
-    }
-
-    const chatData = await response.json();
-    console.log("Backend returnerte chatData:", chatData);
-    return chatData.title; // Bruk backend's genererte title (chat_id)
+    
+    if (!response.ok) throw new Error('Feil ved opprettelse av chat');
+    const data = await response.json();
+    return data.chat_id;
   } catch (error) {
-    console.error("Feil ved opprettelse av ny chat:", error);
+    console.error('Feil ved opprettelse av chat:', error);
     throw error;
   }
 }
@@ -473,28 +465,26 @@ async function onNewChat() {
     console.log("Oppretter ny chat med modell:", selectedModel);
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Opprett ny chat og vent på resultatet
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
-    
-    // Sett currentChatId før vi henter chats
     currentChatId = chatId;
     console.log("Oppdatert currentChatId til:", currentChatId);
 
-    // Tøm chat-vinduet før vi laster inn den nye chatten
+    // Oppdater chat-selector og last inn den nye chatten
+    await fetchChats();
+    if (chatSelector) {
+      chatSelector.value = currentChatId;
+      await loadChat(currentChatId);
+    }
+
+    // Tøm meldingsvinduet
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
 
-    // Oppdater chat-selector og last inn den nye chatten
-    await fetchChats(false); // Ikke last chatten automatisk
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-    }
-
-    // Vis velkomstmelding
+    // Legg til velkomstmelding
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat opprettet og initialisert med ID:", currentChatId);
+    console.log("Ny chat opprettet med ID:", currentChatId);
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
@@ -783,11 +773,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchModels();
   console.log("Modeller lastet");
 
-  // Deretter last chats
+  // Opprett en ny chat hvis ingen er aktiv
+  if (!currentChatId) {
+    try {
+      currentChatId = await createNewChat();
+      console.log("Opprettet ny chat ved oppstart:", currentChatId);
+    } catch (error) {
+      console.error("Feil ved opprettelse av ny chat ved oppstart:", error);
+    }
+  }
+
+  // Deretter last chats og sett opp event listeners
   await fetchChats();
   console.log("Chats lastet");
-
-  // Til slutt sett opp event listeners
   setupEventListeners();
   console.log("Event listeners satt opp");
 
