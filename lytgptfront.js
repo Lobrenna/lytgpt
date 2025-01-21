@@ -473,10 +473,6 @@ async function onNewChat() {
     console.log("Starter ny chat prosess...");
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    console.log("Oppretter ny chat med modell:", selectedModel);
-    const chatId = await createNewChat();
-    console.log("Backend returnerte chatId:", chatId);
-    
     // Sett en flag i sessionStorage for å indikere at dette er en new chat reload
     sessionStorage.setItem('isNewChatReload', 'true');
     
@@ -1028,7 +1024,7 @@ async function updateChatSelector(newChatId) {
 /**
  * Initialiser når DOM er lastet
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log("DOMContentLoaded triggered");
   
   fetchModels();
@@ -1049,9 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Sjekk om dette er en new chat reload
   if (sessionStorage.getItem('isNewChatReload')) {
-      // Fjern flagget
       sessionStorage.removeItem('isNewChatReload');
-      // Ikke kjør new chat prosessen på nytt
       return;
   }
 });
