@@ -822,24 +822,35 @@ async function fetchChats(autoLoad = true) {
     const chats = await response.json();
     console.log("Hentet chats:", chats);
 
-    if (chatSelector && chatSelector.children.length === 0) {
-      console.log("Populerer chat selector for første gang");
-      // Kun populer hvis chat-selector er tom
-      chats.forEach(chat => {
-        const option = document.createElement('option');
-        option.value = chat.title;
-        option.textContent = chat.title;
-        chatSelector.appendChild(option);
-      });
-    } else if (chatSelector && currentChatId) {
-      console.log("Oppdaterer aktiv chat i selector:", currentChatId);
-      // Kun oppdater valgt verdi hvis vi har en currentChatId
-      chatSelector.value = currentChatId;
-    }
+    if (chatSelector) {
+      // Sjekk om vi har default Webflow options
+      const hasDefaultOptions = Array.from(chatSelector.options).some(option => 
+        option.value === "First" || option.value === "Second" || option.value === "Third"
+      );
 
-    // Last chat kun hvis autoLoad er true og vi har en currentChatId
-    if (autoLoad && currentChatId) {
-      await loadChat(currentChatId);
+      // Hvis vi har default options eller chat-selector er tom, populer på nytt
+      if (hasDefaultOptions || chatSelector.children.length === 0) {
+        console.log("Fjerner default options og populerer chat selector");
+        chatSelector.innerHTML = ''; // Tøm eksisterende options
+        
+        chats.forEach(chat => {
+          const option = document.createElement('option');
+          option.value = chat.title;
+          option.textContent = chat.title;
+          chatSelector.appendChild(option);
+        });
+      }
+
+      // Oppdater valgt chat hvis vi har en currentChatId
+      if (currentChatId && chats.some(chat => chat.title === currentChatId)) {
+        console.log("Setter aktiv chat til:", currentChatId);
+        chatSelector.value = currentChatId;
+        if (autoLoad) {
+          await loadChat(currentChatId);
+        }
+      } else {
+        console.log("Ingen aktiv chat å sette");
+      }
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
