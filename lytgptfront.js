@@ -1026,12 +1026,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Last inn modeller og initialiser selector
   await fetchModels();
-  initializeModelSelector();
+  
+  // Sett aktivt valg til første modell
+  if (modelSelector && modelSelector.options.length > 0) {
+      const firstModel = modelSelector.options[0].value;
+      modelSelector.value = firstModel;
+      selectedModel = firstModel;
+      console.log("Satt aktiv modell til:", firstModel);
+  }
   
   // Last inn eksisterende chats
   await fetchChats();
   
-  // Hvis dette er en new chat reload, ikke gjør noe mer
+  // Hvis dette er en new chat reload
   if (sessionStorage.getItem('isNewChatReload')) {
       sessionStorage.removeItem('isNewChatReload');
       
