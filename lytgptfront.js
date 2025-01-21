@@ -300,7 +300,7 @@ async function onSendMessage() {
       // Send som long-context request med FormData
       const formData = new FormData();
       formData.append('message', message);
-      formData.append('files', hasContextFile);
+      formData.append('context_file', hasContextFile);
       
       response = await fetch(`${API_BASE_URL}/chat/long-context`, {
         method: 'POST',
