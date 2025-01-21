@@ -728,15 +728,17 @@ async function onSetUrl(event) {
     return;
   }
 
-  const formData = new FormData();
-  formData.append('url', url);
-  formData.append('max_depth', maxDepth);
-
   try {
     // Først scraper vi URL-en
     const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
       method: 'POST',
-      body: formData
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: url,
+        max_depth: maxDepth
+      })
     });
 
     if (!resp.ok) {
@@ -746,17 +748,16 @@ async function onSetUrl(event) {
     const data = await resp.json();
     
     // Nå laster vi opp filen som kontekst
-    const uploadFormData = new FormData();
-    uploadFormData.append('chat_id', currentChatId);
-    uploadFormData.append('message', 'Kan du bekrefte at du har tilgang til konteksten?'); // Legg til en testmelding
-    if (selectedModel) {
-      uploadFormData.append('preferred_model', selectedModel);
-    }
-
-    // Send en long-context request med filnavnet
     const longContextResponse = await fetch(`${API_BASE_URL}/chat/long-context`, {
       method: 'POST',
-      body: uploadFormData
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: currentChatId,
+        message: 'Kan du bekrefte at du har tilgang til konteksten?',
+        preferred_model: selectedModel
+      })
     });
 
     if (!longContextResponse.ok) {
