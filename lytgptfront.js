@@ -774,8 +774,8 @@ async function onSetUrl() {
     uploadSuccess.style.display = 'inline-block';
     uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
     
-    // Legg til systemmelding i chat som en vanlig melding
-    if (data.message) {
+    // Legg til melding i chat
+    if (typeof data.message === 'string') {
       appendMessageToChat({
         role: 'assistant',
         content: data.message
