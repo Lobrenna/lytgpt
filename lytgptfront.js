@@ -696,9 +696,21 @@ async function onChatChange(e) {
   }
 }
 
-/**
- * onSetUrl - Legg til URL-kontekst
- */
+// URL input og scraping
+if (urlInput && setUrlButton) {
+  urlInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onSetUrl();
+    }
+  });
+
+  setUrlButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    onSetUrl();
+  });
+}
+
 async function onSetUrl() {
   if (!currentChatId) {
     showError("Vennligst velg eller opprett en chat først");
