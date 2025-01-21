@@ -33,8 +33,24 @@ marked.setOptions({
     if (lang && Prism.languages[lang]) {
       return Prism.highlight(code, Prism.languages[lang], lang);
     } else {
-      // Standard språk hvis ikke spesifisert
       return Prism.highlight(code, Prism.languages.javascript, 'javascript');
+    }
+  },
+  // Tilpass renderer for å unngå overflødige p-tagger
+  renderer: {
+    listitem(text) {
+      // Fjern p-tagger fra listeelementer hvis de starter og slutter med dem
+      if (text.startsWith('<p>') && text.endsWith('</p>')) {
+        text = text.slice(3, -4);
+      }
+      return `<li>${text}</li>`;
+    },
+    paragraph(text) {
+      // Unngå å wrappe enkle linjer i p-tagger hvis de er del av en liste
+      if (text.includes('<ul>') || text.includes('<ol>')) {
+        return text;
+      }
+      return `<p>${text}</p>`;
     }
   }
 });
@@ -42,10 +58,19 @@ marked.setOptions({
 /**
  * renderMarkdown(markdownText)
  *  - Bruker Marked.js til å parse all Markdown 
- *  - Returnerer ferdig HTML
+ *  - Returnerer ferdig HTML med forbedret formatering
  */
 function renderMarkdown(markdownText) {
-  return marked.parse(markdownText);
+  let html = marked.parse(markdownText);
+  
+  // Fjern eventuelle gjenværende doble linjeskift
+  html = html.replace(/\n\s*\n/g, '\n');
+  
+  // Fjern overflødige p-tagger rundt lister
+  html = html.replace(/<p>(\s*<[uo]l>)/g, '$1');
+  html = html.replace(/(<\/[uo]l>\s*)<\/p>/g, '$1');
+  
+  return html;
 }
 
 /**
