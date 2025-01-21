@@ -203,10 +203,10 @@ function clearChatMessages() {
 
 /**
  * createNewChat - Oppretter en ny chat på backend
- * @returns {Promise<string>} - ID til den nye chatten
  */
 async function createNewChat() {
   try {
+    console.log("createNewChat: Starter med modell:", selectedModel);
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
       headers: {
@@ -215,11 +215,15 @@ async function createNewChat() {
       body: JSON.stringify({ model: selectedModel })
     });
     
-    if (!response.ok) throw new Error('Feil ved opprettelse av chat');
+    if (!response.ok) {
+      console.error("createNewChat: Feil respons fra server:", response.status, response.statusText);
+      throw new Error('Feil ved opprettelse av chat');
+    }
     const data = await response.json();
+    console.log("createNewChat: Mottatt data fra server:", data);
     return data.chat_id;
   } catch (error) {
-    console.error('Feil ved opprettelse av chat:', error);
+    console.error('createNewChat: Feil:', error);
     throw error;
   }
 }
@@ -763,31 +767,33 @@ let isInitialized = false;
  * Initialiser når DOM er lastet
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log("DOMContentLoaded triggered");
+  console.log("DOMContentLoaded: Starter initialisering");
   if (isInitialized) {
-    console.log("Allerede initialisert, hopper over");
+    console.log("DOMContentLoaded: Allerede initialisert, hopper over");
     return;
   }
   
   // Vent på at modeller lastes først
+  console.log("DOMContentLoaded: Laster modeller");
   await fetchModels();
-  console.log("Modeller lastet");
+  console.log("DOMContentLoaded: Modeller lastet, selectedModel:", selectedModel);
 
   // Opprett en ny chat hvis ingen er aktiv
   if (!currentChatId) {
     try {
+      console.log("DOMContentLoaded: Ingen aktiv chat, oppretter ny");
       currentChatId = await createNewChat();
-      console.log("Opprettet ny chat ved oppstart:", currentChatId);
+      console.log("DOMContentLoaded: Ny chat opprettet:", currentChatId);
     } catch (error) {
-      console.error("Feil ved opprettelse av ny chat ved oppstart:", error);
+      console.error("DOMContentLoaded: Feil ved opprettelse av ny chat:", error);
     }
   }
 
   // Deretter last chats og sett opp event listeners
+  console.log("DOMContentLoaded: Laster chats");
   await fetchChats();
-  console.log("Chats lastet");
+  console.log("DOMContentLoaded: Setter opp event listeners");
   setupEventListeners();
-  console.log("Event listeners satt opp");
 
   if (chatInput) {
     chatInput.style.color = "#000";
@@ -800,29 +806,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   isInitialized = true;
+  console.log("DOMContentLoaded: Initialisering fullført");
 });
-
-// Forhindre window.onload fra å overskrive våre innstillinger
-window.onload = function() {
-  if (isInitialized) {
-    console.log("Allerede initialisert, bevarer eksisterende tilstand");
-    return;
-  }
-};
 
 /**
  * fetchChats - Henter tilgjengelige chats fra backend
  */
 async function fetchChats(autoLoad = true) {
   try {
+    console.log("fetchChats: Starter henting av chats");
     const response = await fetch(`${API_BASE_URL}/chats`);
     if (!response.ok) throw new Error('Feil ved henting av chats');
     const chats = await response.json();
-    console.log("Hentet chats:", chats);
+    console.log("fetchChats: Mottatt chats fra server:", chats);
 
     if (chatSelector) {
+      console.log("fetchChats: Oppdaterer chat selector");
       chatSelector.innerHTML = '';
       chats.forEach(chat => {
+        console.log("fetchChats: Legger til chat:", chat);
         const option = document.createElement('option');
         option.value = chat.title;
         option.textContent = chat.title;
@@ -830,18 +832,24 @@ async function fetchChats(autoLoad = true) {
       });
 
       // Hvis currentChatId ikke finnes i listen, reset det
-      if (!chats.some(chat => chat.title === currentChatId)) {
-        console.log("currentChatId finnes ikke i listen over chats.");
+      const chatExists = chats.some(chat => chat.title === currentChatId);
+      console.log("fetchChats: Sjekker currentChatId:", currentChatId, "Eksisterer:", chatExists);
+      
+      if (!chatExists) {
+        console.log("fetchChats: currentChatId finnes ikke i listen, resetter");
         currentChatId = null;
       }
 
       // Last chat kun hvis autoLoad er true
       if (autoLoad && currentChatId) {
+        console.log("fetchChats: Laster aktiv chat:", currentChatId);
         await loadChat(currentChatId);
       }
+    } else {
+      console.error("fetchChats: chatSelector ikke funnet i DOM");
     }
   } catch (error) {
-    console.error('Feil ved henting av chats:', error);
+    console.error('fetchChats: Feil:', error);
   }
 }
 
