@@ -341,14 +341,6 @@ async function onSendMessage() {
 
   const message = chatInput.value.trim();
   
-  // 1. Vis brukerens melding først og tøm input
-  appendMessageToChat('user', renderMarkdown(message));
-  chatInput.value = '';
-
-  // 2. Vis "Genererer svar..." melding
-  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-  showSpinner(sendButton, 'Sender...');
-
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
   let hasFiles = false;
   const formData = new FormData();
@@ -446,6 +438,14 @@ async function onSendMessage() {
       } catch (error) {
         console.warn("Kunne ikke sjekke kontekst:", error);
       }
+
+      // 1. Vis brukerens melding først og tøm input
+      appendMessageToChat('user', renderMarkdown(message));
+      chatInput.value = '';
+
+      // 2. Vis "Genererer svar..." melding
+      const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+      showSpinner(sendButton, 'Sender...');
 
       console.log("Sender vanlig melding til chat:", currentChatId);
       data = await sendMessage(currentChatId, message);
