@@ -722,7 +722,7 @@ async function onChatChange(e) {
  */
 async function onSetUrl() {
   if (!urlInput || !urlInput.value.trim()) {
-    appendMessageToChat('error', "Vennligst skriv inn en URL.");
+    alert("Vennligst skriv inn en URL.");
     return;
   }
 
@@ -756,12 +756,12 @@ async function onSetUrl() {
     const data = await response.json();
     console.log("URL context response:", data);
     
-    appendMessageToChat('system', "Kontekst lastet fra URL.");
+    alert("Kontekst lastet fra URL.");
     urlInput.value = '';
 
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
-    appendMessageToChat('error', "Feil ved innstilling av URL.");
+    alert("Feil ved innstilling av URL.");
   } finally {
     hideSpinner(setUrlButton);
   }
