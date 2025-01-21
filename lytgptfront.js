@@ -757,7 +757,8 @@ async function onSetUrl() {
       throw new Error(`HTTP error! status: ${resp.status}`);
     }
 
-    await resp.json();
+    const data = await resp.json();
+    alert(data.message);
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
