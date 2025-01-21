@@ -777,11 +777,10 @@ async function fetchChats(autoLoad = true) {
     console.log("Hentet chats:", chats);
 
     if (chatSelector) {
-      // Behold eksisterende currentChatId
-      const existingChatId = currentChatId;
-      
-      // Oppdater chat selector
+      // Tøm eksisterende options
       chatSelector.innerHTML = '';
+      
+      // Legg til hver chat som en option
       chats.forEach(chat => {
         const option = document.createElement('option');
         option.value = chat.title;
@@ -789,15 +788,14 @@ async function fetchChats(autoLoad = true) {
         chatSelector.appendChild(option);
       });
 
-      // Sjekk om eksisterende chat fortsatt finnes
-      if (existingChatId && chats.some(chat => chat.title === existingChatId)) {
-        chatSelector.value = existingChatId;
-        // Last chat kun hvis autoLoad er true
+      // Hvis vi har en currentChatId, sett den som aktiv
+      if (currentChatId && chats.some(chat => chat.title === currentChatId)) {
+        chatSelector.value = currentChatId;
         if (autoLoad) {
-          await loadChat(existingChatId);
+          await loadChat(currentChatId);
         }
-      } else if (!existingChatId) {
-        console.log("Ingen aktiv chat.");
+      } else {
+        console.log("Ingen aktiv chat eller chatten finnes ikke lenger");
       }
     }
   } catch (error) {
@@ -1031,53 +1029,25 @@ async function updateChatSelector(newChatId) {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DOMContentLoaded triggered");
   
-  // Last inn modeller og initialiser selector
+  // Vent på at modeller lastes først
   await fetchModels();
-  
-  // Sett aktivt valg til første modell
-  if (modelSelector && modelSelector.options.length > 0) {
-      const firstModel = modelSelector.options[0].value;
-      modelSelector.value = firstModel;
-      selectedModel = firstModel;
-      console.log("Satt aktiv modell til:", firstModel);
-  }
-  
-  // Last inn eksisterende chats
+  console.log("Modeller lastet");
+
+  // Deretter last chats
   await fetchChats();
-  
-  // Hvis dette er en new chat reload
-  if (sessionStorage.getItem('isNewChatReload')) {
-      sessionStorage.removeItem('isNewChatReload');
-      
-      // Sett opp akkurat som ved første oppstart
-      setupEventListeners();
-      
-      if (chatInput) {
-          chatInput.style.color = "#000";
-      }
-      
-      // Legg til event listener på eksisterende filopplastingsfelt
-      const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-      initialFileInputs.forEach(input => {
-          input.addEventListener('change', handleFileSelection);
-      });
-      
-      // Tøm chat-messages og vis velkomstmelding
-      if (chatMessages) {
-          chatMessages.innerHTML = '';
-          appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-      }
-  } else {
-      setupEventListeners();
-      
-      if (chatInput) {
-          chatInput.style.color = "#000";
-      }
-      
-      // Legg til event listener på eksisterende filopplastingsfelt
-      const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-      initialFileInputs.forEach(input => {
-          input.addEventListener('change', handleFileSelection);
-      });
+  console.log("Chats lastet");
+
+  // Til slutt sett opp event listeners
+  setupEventListeners();
+  console.log("Event listeners satt opp");
+
+  if (chatInput) {
+    chatInput.style.color = "#000";
   }
+
+  // Legg til event listener på eksisterende filopplastingsfelt
+  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+  initialFileInputs.forEach(input => {
+    input.addEventListener('change', handleFileSelection);
+  });
 });
