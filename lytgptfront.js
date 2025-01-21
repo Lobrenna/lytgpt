@@ -598,29 +598,49 @@ async function onUploadFiles() {
 async function deleteChat(chatId) {
   try {
     console.log("deleteChat: Starter sletting av chat:", chatId);
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`, {
+    
+    // Hent alle chats før sletting for å finne nest nyeste
+    const response = await fetch(`${API_BASE_URL}/chats`);
+    const chats = await response.json();
+    console.log("deleteChat: Hentet eksisterende chats:", chats);
+    
+    // Finn nest nyeste chat (hvis den finnes)
+    const nextChat = chats.find(chat => {
+      const chatTitle = typeof chat === 'string' ? chat : chat.title;
+      return chatTitle !== chatId;
+    });
+    console.log("deleteChat: Neste chat å bytte til:", nextChat);
+
+    // Slett nåværende chat
+    const deleteResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`, {
       method: 'DELETE'
     });
     
-    if (!response.ok) {
-      console.error("deleteChat: Feil ved sletting:", response.status, response.statusText);
+    if (!deleteResponse.ok) {
+      console.error("deleteChat: Feil ved sletting:", deleteResponse.status, deleteResponse.statusText);
       throw new Error('Feil ved sletting av chat');
     }
 
     console.log("deleteChat: Chat slettet:", chatId);
-    // Opprett ny chat etter sletting
-    currentChatId = await createNewChat();
-    console.log("deleteChat: Ny chat opprettet:", currentChatId);
     
-    // Oppdater chat-selector og last inn den nye chatten
+    // Hvis vi har en nest nyeste chat, bruk den. Ellers opprett ny
+    if (nextChat) {
+      currentChatId = typeof nextChat === 'string' ? nextChat : nextChat.title;
+      console.log("deleteChat: Bytter til eksisterende chat:", currentChatId);
+    } else {
+      currentChatId = await createNewChat();
+      console.log("deleteChat: Ingen eksisterende chat funnet, opprettet ny:", currentChatId);
+    }
+    
+    // Oppdater chat-selector og last inn den valgte chatten
     await fetchChats();
     if (chatSelector) {
       chatSelector.value = currentChatId;
       await loadChat(currentChatId);
     }
 
-    // Tøm meldingsvinduet
-    if (chatMessages) {
+    // Tøm meldingsvinduet hvis vi opprettet ny chat
+    if (!nextChat && chatMessages) {
       chatMessages.innerHTML = '';
     }
   } catch (error) {
