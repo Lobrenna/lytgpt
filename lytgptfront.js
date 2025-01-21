@@ -748,6 +748,7 @@ async function onSetUrl(event) {
     // Nå laster vi opp filen som kontekst
     const uploadFormData = new FormData();
     uploadFormData.append('chat_id', currentChatId);
+    uploadFormData.append('message', 'Kan du bekrefte at du har tilgang til konteksten?'); // Legg til en testmelding
     if (selectedModel) {
       uploadFormData.append('preferred_model', selectedModel);
     }
@@ -773,6 +774,9 @@ async function onSetUrl(event) {
       const modelInfo = `Modell: ${longContextData.selected_model} | Kontekst: ${formatFileSize(longContextData.context_length)} | Est. tokens: ${longContextData.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
     }
+
+    // Vis svaret fra modellen
+    appendMessageToChat('assistant', renderMarkdown(longContextData.response));
 
     urlInput.value = '';
 
