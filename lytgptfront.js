@@ -471,47 +471,31 @@ async function onSendMessage() {
 async function onNewChat() {
   try {
     console.log("Starter ny chat prosess...");
-
-    // Spinner-funksjonalitet: Vis spinner på newChatButton
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
-    // Reset alle file upload elementer
-    const fileUploadDivs = document.querySelectorAll('.w-file-upload');
-    console.log("Fant file upload divs:", fileUploadDivs.length);
-    
-    fileUploadDivs.forEach((uploadDiv, index) => {
-      console.log(`Resetter file upload div ${index}`);
+    // Reset file upload form ved å erstatte hele elementet
+    const formBlock = document.querySelector('.form-block-2');
+    if (formBlock) {
+      const originalForm = formBlock.innerHTML;
+      formBlock.innerHTML = originalForm;
       
-      // Reset input
-      const fileInput = uploadDiv.querySelector('.w-file-upload-input');
-      if (fileInput) {
-        fileInput.value = '';
+      // Gjenopprett event listeners for det nye elementet
+      const newFileInput = formBlock.querySelector('.w-file-upload-input');
+      if (newFileInput) {
+        newFileInput.addEventListener('change', (e) => {
+          const uploadDiv = e.target.closest('.w-file-upload');
+          const defaultView = uploadDiv?.querySelector('.w-file-upload-default');
+          const successView = uploadDiv?.querySelector('.w-file-upload-success');
+          const fileNameElement = uploadDiv?.querySelector('.w-file-upload-file-name');
+          
+          if (e.target.files && e.target.files[0] && defaultView && successView && fileNameElement) {
+            defaultView.classList.add('w-hidden');
+            successView.classList.remove('w-hidden');
+            fileNameElement.textContent = e.target.files[0].name;
+          }
+        });
       }
-
-      // Skjul success view
-      const successView = uploadDiv.querySelector('.w-file-upload-success');
-      if (successView) {
-        successView.classList.add('w-hidden');
-      }
-
-      // Vis default view
-      const defaultView = uploadDiv.querySelector('.w-file-upload-default');
-      if (defaultView) {
-        defaultView.classList.remove('w-hidden');
-      }
-
-      // Reset error view
-      const errorView = uploadDiv.querySelector('.w-file-upload-error');
-      if (errorView) {
-        errorView.classList.add('w-hidden');
-      }
-
-      // Reset file name text hvis det finnes
-      const fileNameText = uploadDiv.querySelector('.w-file-upload-file-name');
-      if (fileNameText) {
-        fileNameText.textContent = '';
-      }
-    });
+    }
 
     // Reset chat input
     if (chatInput) {
@@ -547,12 +531,12 @@ async function onNewChat() {
       chatMessages.innerHTML = '';
     }
 
-    // Reset selectedModel til standard modell
-    if (modelSelector) {
-      const defaultModel = modelSelector.options[0].value;
-      modelSelector.value = defaultModel;
-      selectedModel = defaultModel;
-      console.log("Reset modell til:", defaultModel);
+    // Reset selectedModel til første modell
+    if (modelSelector && modelSelector.options.length > 0) {
+      const firstModel = modelSelector.options[0].value;
+      modelSelector.value = firstModel;
+      selectedModel = firstModel;
+      console.log("Reset modell til første tilgjengelige:", firstModel);
     }
 
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
@@ -563,6 +547,16 @@ async function onNewChat() {
     alert("Feil ved opprettelse av ny chat.");
   } finally {
     hideSpinner(newChatButton);
+  }
+}
+
+// Legg til denne funksjonen for å sette standard modell ved oppstart
+function initializeModelSelector() {
+  if (modelSelector && modelSelector.options.length > 0) {
+    const firstModel = modelSelector.options[0].value;
+    modelSelector.value = firstModel;
+    selectedModel = firstModel;
+    console.log("Initialisert med første tilgjengelige modell:", firstModel);
   }
 }
 
@@ -1107,4 +1101,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initialFileInputs.forEach(input => {
     input.addEventListener('change', handleFileSelection);
   });
+
+  initializeModelSelector();
 });
