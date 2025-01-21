@@ -766,6 +766,52 @@ async function fetchModels() {
   }
 }
 
+// Legg til en global variabel for å spore om vi har initialisert
+let isInitialized = false;
+
+/**
+ * Initialiser når DOM er lastet
+ */
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("DOMContentLoaded triggered");
+  if (isInitialized) {
+    console.log("Allerede initialisert, hopper over");
+    return;
+  }
+  
+  // Vent på at modeller lastes først
+  await fetchModels();
+  console.log("Modeller lastet");
+
+  // Deretter last chats
+  await fetchChats();
+  console.log("Chats lastet");
+
+  // Til slutt sett opp event listeners
+  setupEventListeners();
+  console.log("Event listeners satt opp");
+
+  if (chatInput) {
+    chatInput.style.color = "#000";
+  }
+
+  // Legg til event listener på eksisterende filopplastingsfelt
+  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+  initialFileInputs.forEach(input => {
+    input.addEventListener('change', handleFileSelection);
+  });
+
+  isInitialized = true;
+});
+
+// Forhindre window.onload fra å overskrive våre innstillinger
+window.onload = function() {
+  if (isInitialized) {
+    console.log("Allerede initialisert, bevarer eksisterende tilstand");
+    return;
+  }
+};
+
 /**
  * fetchChats - Henter tilgjengelige chats fra backend
  */
@@ -776,27 +822,24 @@ async function fetchChats(autoLoad = true) {
     const chats = await response.json();
     console.log("Hentet chats:", chats);
 
-    if (chatSelector) {
-      // Tøm eksisterende options
-      chatSelector.innerHTML = '';
-      
-      // Legg til hver chat som en option
+    if (chatSelector && chatSelector.children.length === 0) {
+      console.log("Populerer chat selector for første gang");
+      // Kun populer hvis chat-selector er tom
       chats.forEach(chat => {
         const option = document.createElement('option');
         option.value = chat.title;
         option.textContent = chat.title;
         chatSelector.appendChild(option);
       });
+    } else if (chatSelector && currentChatId) {
+      console.log("Oppdaterer aktiv chat i selector:", currentChatId);
+      // Kun oppdater valgt verdi hvis vi har en currentChatId
+      chatSelector.value = currentChatId;
+    }
 
-      // Hvis vi har en currentChatId, sett den som aktiv
-      if (currentChatId && chats.some(chat => chat.title === currentChatId)) {
-        chatSelector.value = currentChatId;
-        if (autoLoad) {
-          await loadChat(currentChatId);
-        }
-      } else {
-        console.log("Ingen aktiv chat eller chatten finnes ikke lenger");
-      }
+    // Last chat kun hvis autoLoad er true og vi har en currentChatId
+    if (autoLoad && currentChatId) {
+      await loadChat(currentChatId);
     }
   } catch (error) {
     console.error('Feil ved henting av chats:', error);
@@ -1022,32 +1065,3 @@ async function updateChatSelector(newChatId) {
     await loadChat(newChatId);
   }
 }
-
-/**
- * Initialiser når DOM er lastet
- */
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log("DOMContentLoaded triggered");
-  
-  // Vent på at modeller lastes først
-  await fetchModels();
-  console.log("Modeller lastet");
-
-  // Deretter last chats
-  await fetchChats();
-  console.log("Chats lastet");
-
-  // Til slutt sett opp event listeners
-  setupEventListeners();
-  console.log("Event listeners satt opp");
-
-  if (chatInput) {
-    chatInput.style.color = "#000";
-  }
-
-  // Legg til event listener på eksisterende filopplastingsfelt
-  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-  initialFileInputs.forEach(input => {
-    input.addEventListener('change', handleFileSelection);
-  });
-});
