@@ -332,8 +332,7 @@ async function onSendMessage() {
   const formData = new FormData();
   formData.append('message', message);
 
-  // Samle alle filer fra inputs som har en fil valgt
-  let fileCount = 0;
+  // Sjekk om det er filer
   fileInputs.forEach((input) => {
     const uploadDiv = input.closest('.w-file-upload');
     const successView = uploadDiv?.querySelector('.w-file-upload-success');
@@ -342,16 +341,20 @@ async function onSendMessage() {
         input.files[0] && 
         successView && 
         !successView.classList.contains('w-hidden')) {
-
-      fileCount++;
       formData.append('files', input.files[0]);
       hasFiles = true;
     }
   });
 
-  // Vis brukerens melding, men fjern Context-delen hvis den finnes
-  const cleanMessage = message.replace(/Context:[\s\S]*?(?=\n\s*Spørsmål:|$)/, '').trim();
-  appendMessageToChat('user', cleanMessage);
+  // For fil-baserte meldinger, vis bare spørsmålsdelen
+  if (hasFiles) {
+    const questionMatch = message.match(/Spørsmål:.*$/s);
+    if (questionMatch) {
+      appendMessageToChat('user', renderMarkdown(questionMatch[0]));
+    }
+  } else {
+    appendMessageToChat('user', renderMarkdown(message));
+  }
   
   chatInput.value = '';
   appendMessageToChat('assistant', 'Genererer svar...');
@@ -362,8 +365,6 @@ async function onSendMessage() {
     let data;
 
     if (hasFiles) {
-      console.log("Sender request med filer til long-context endpoint");
-
       if (selectedModel) {
         formData.append('preferred_model', selectedModel);
       }
@@ -384,7 +385,6 @@ async function onSendMessage() {
       chatMessages.removeChild(chatMessages.lastChild);
 
       if (data.new_chat_id && data.new_chat_id !== currentChatId) {
-        // Oppdater currentChatId men ikke last chat på nytt
         currentChatId = data.new_chat_id;
         console.log("Oppdatert currentChatId til:", currentChatId);
         
@@ -395,7 +395,7 @@ async function onSendMessage() {
         }
       }
 
-      // Vis kun modellinfo og svar
+      // Vis modellinfo og svar
       const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
       appendMessageToChat('assistant', data.response);
