@@ -349,8 +349,10 @@ async function onSendMessage() {
     }
   });
 
-  // Vis ALLTID brukerens melding
-  appendMessageToChat('user', message);
+  // Vis brukerens melding, men fjern Context-delen hvis den finnes
+  const cleanMessage = message.replace(/Context:[\s\S]*?(?=\n\s*Spørsmål:|$)/, '').trim();
+  appendMessageToChat('user', cleanMessage);
+  
   chatInput.value = '';
   appendMessageToChat('assistant', 'Genererer svar...');
 
@@ -381,24 +383,22 @@ async function onSendMessage() {
       // Fjern "Genererer svar..." meldingen
       chatMessages.removeChild(chatMessages.lastChild);
 
-      if (data.new_chat_id) {
-        console.log("Chat ID ble renamet til:", data.new_chat_id);
-        // Oppdater currentChatId
+      if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+        // Oppdater currentChatId men ikke last chat på nytt
         currentChatId = data.new_chat_id;
         console.log("Oppdatert currentChatId til:", currentChatId);
-
-        // Oppdater chat-selector
+        
+        // Oppdater chat-selector uten å laste chatten på nytt
         await fetchChats();
         if (chatSelector) {
           chatSelector.value = currentChatId;
-          await loadChat(currentChatId);
         }
-      } else {
-        // Vis kun modellinfo og svar, ikke konteksten
-        const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-        appendMessageToChat('system', modelInfo);
-        appendMessageToChat('assistant', data.response);
       }
+
+      // Vis kun modellinfo og svar
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+      appendMessageToChat('assistant', data.response);
 
     } else {
       // Vanlig chat uten filer
