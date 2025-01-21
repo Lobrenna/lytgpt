@@ -756,7 +756,8 @@ async function onSetUrl(event) {
       body: JSON.stringify({
         chat_id: currentChatId,
         message: 'Kan du bekrefte at du har tilgang til konteksten?',
-        preferred_model: selectedModel
+        preferred_model: selectedModel,
+        context_file: data.filenames[0]  // Legg til filnavnet fra URL-scrapingen
       })
     });
 
