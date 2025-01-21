@@ -497,23 +497,27 @@ async function onNewChat() {
       chatMessages.innerHTML = '';
     }
 
-    // Nullstill file uploads
-    const fileInputs = document.querySelectorAll('.w-file-upload-input');
-    fileInputs.forEach(input => {
-      input.value = '';
-    });
-    
-    // Fjern eventuelle "success" indikatorer for filopplasting
-    const successElements = document.querySelectorAll('.w-file-upload-success');
-    successElements.forEach(element => {
-      element.style.display = 'none';
-    });
-    
-    // Vis default upload state
-    const defaultElements = document.querySelectorAll('.w-file-upload-default');
-    defaultElements.forEach(element => {
-      element.style.display = 'block';
-    });
+    // Nullstill file upload
+    const fileUploadDefault = document.querySelector('.w-file-upload-default');
+    if (fileUploadDefault) {
+      fileUploadDefault.style.display = 'block';
+    }
+
+    const fileUploadSuccess = document.querySelector('.w-file-upload-success');
+    if (fileUploadSuccess) {
+      fileUploadSuccess.style.display = 'none';
+    }
+
+    const fileInput = document.querySelector('.w-file-upload-input');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+
+    // Fjern den ekstra file upload widgeten hvis den eksisterer
+    const extraFileUpload = document.querySelector('.w-file-upload:nth-child(2)');
+    if (extraFileUpload) {
+      extraFileUpload.remove();
+    }
 
     // Nullstill URL input
     if (urlInput) {
