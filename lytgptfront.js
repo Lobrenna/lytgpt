@@ -720,7 +720,12 @@ async function onChatChange(e) {
 /**
  * onSetUrl - Legg til URL-kontekst
  */
-async function onSetUrl() {
+async function onSetUrl(event) {
+  // Prevent form submission if called from form submit
+  if (event && event.preventDefault) {
+    event.preventDefault();
+  }
+
   showSpinner(setUrlButton, 'Henter...');
 
   if (!currentChatId) {
@@ -729,7 +734,7 @@ async function onSetUrl() {
       console.log("Ny chat opprettet med ID:", currentChatId);
     } catch (error) {
       console.error("Feil ved opprettelse av ny chat:", error);
-      alert("Feil ved opprettelse av ny chat.");
+      appendMessageToChat('error', "Feil ved opprettelse av ny chat.");
       hideSpinner(setUrlButton);
       return;
     }
@@ -738,7 +743,7 @@ async function onSetUrl() {
   const url = urlInput.value.trim();
   const maxDepth = 1;
   if (!url) {
-    alert("Vennligst skriv inn en URL.");
+    appendMessageToChat('error', "Vennligst skriv inn en URL.");
     hideSpinner(setUrlButton);
     return;
   }
@@ -758,11 +763,11 @@ async function onSetUrl() {
     }
 
     const data = await resp.json();
-    alert(data.message);
+    appendMessageToChat('system', data.message);
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
-    alert("Feil ved innstilling av URL.");
+    appendMessageToChat('error', "Feil ved innstilling av URL.");
   } finally {
     hideSpinner(setUrlButton);
   }
@@ -1113,6 +1118,12 @@ function setupEventListeners() {
         onSendMessage();
       }
     });
+  }
+
+  // Add form submit handler for URL input
+  const urlForm = document.getElementById('email-form');
+  if (urlForm) {
+    urlForm.addEventListener('submit', onSetUrl);
   }
 
   console.log("Event listeners setup complete");
