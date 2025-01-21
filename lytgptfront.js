@@ -353,7 +353,7 @@ async function onSendMessage() {
   });
 
   chatInput.value = '';
-  appendMessageToChat('assistant', 'Genererer svar...');
+  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
 
   showSpinner(sendButton, 'Sender...');
 
@@ -378,7 +378,9 @@ async function onSendMessage() {
       data = await response.json();
 
       // Fjern "Genererer svar..." meldingen
-      chatMessages.removeChild(chatMessages.lastChild);
+      if (generatingMessage && generatingMessage.parentNode) {
+        generatingMessage.parentNode.removeChild(generatingMessage);
+      }
 
       // Håndter new_chat_id uten å laste chatten på nytt
       if (data.new_chat_id && data.new_chat_id !== currentChatId) {
@@ -393,10 +395,11 @@ async function onSendMessage() {
         }
       }
 
-      // Vis modellinfo og svar
+      // Vis kun modellinfo og svar én gang
       const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
       appendMessageToChat('assistant', data.response);
+      return; // Avslutt funksjonen her for å unngå dobbelt svar
 
     } else {
       // Vanlig chat uten filer
@@ -406,6 +409,11 @@ async function onSendMessage() {
       }
 
       data = await sendMessage(currentChatId, message);
+
+      // Fjern "Genererer svar..." meldingen
+      if (generatingMessage && generatingMessage.parentNode) {
+        generatingMessage.parentNode.removeChild(generatingMessage);
+      }
 
       // Håndter new_chat_id uten å laste chatten på nytt
       if (data.new_chat_id && data.new_chat_id !== currentChatId) {
@@ -427,9 +435,8 @@ async function onSendMessage() {
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
     // Fjern den "Genererer svar..." meldingen
-    const lastMessage = chatMessages.lastChild;
-    if (lastMessage && lastMessage.textContent === 'Genererer svar...') {
-      chatMessages.removeChild(lastMessage);
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
     }
     appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
   } finally {
