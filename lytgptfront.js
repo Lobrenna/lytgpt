@@ -733,6 +733,7 @@ async function onSetUrl(event) {
   formData.append('max_depth', maxDepth);
 
   try {
+    // Først scraper vi URL-en
     const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
       method: 'POST',
       body: formData
@@ -743,37 +744,37 @@ async function onSetUrl(event) {
     }
 
     const data = await resp.json();
+    
+    // Nå laster vi opp filen som kontekst
+    const uploadFormData = new FormData();
+    uploadFormData.append('chat_id', currentChatId);
+    if (selectedModel) {
+      uploadFormData.append('preferred_model', selectedModel);
+    }
+
+    // Send en long-context request med filnavnet
+    const longContextResponse = await fetch(`${API_BASE_URL}/chat/long-context`, {
+      method: 'POST',
+      body: uploadFormData
+    });
+
+    if (!longContextResponse.ok) {
+      throw new Error(`HTTP error! status: ${longContextResponse.status}`);
+    }
+
+    const longContextData = await longContextResponse.json();
+    
+    // Vis bekreftelse og modellinfo
     const message = `Lastet inn kontekst fra ${url}\nLagret som: ${data.filenames[0]}\nKontekst er nå tilgjengelig for chat.`;
     appendMessageToChat('system', message);
-    urlInput.value = '';
-
-    // Last chatten på nytt for å få med konteksten
-    try {
-      const contextResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context`);
-      const contextData = await contextResponse.json();
-      
-      if (contextData.context && contextData.context.trim()) {
-        // Bruk long-context endepunktet hvis det finnes kontekst
-        const chatFormData = new FormData();
-        chatFormData.append('chat_id', currentChatId);
-        if (selectedModel) {
-          chatFormData.append('preferred_model', selectedModel);
-        }
-        
-        const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
-          method: 'POST',
-          body: chatFormData
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        console.log("Chat oppdatert med long-context");
-      }
-    } catch (error) {
-      console.warn("Kunne ikke oppdatere chat med long-context:", error);
+    
+    // Vis modellinfo hvis tilgjengelig
+    if (longContextData.selected_model) {
+      const modelInfo = `Modell: ${longContextData.selected_model} | Kontekst: ${formatFileSize(longContextData.context_length)} | Est. tokens: ${longContextData.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
     }
+
+    urlInput.value = '';
 
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
