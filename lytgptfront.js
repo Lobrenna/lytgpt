@@ -721,7 +721,6 @@ async function onChatChange(e) {
  * onSetUrl - Legg til URL-kontekst
  */
 async function onSetUrl() {
-  // Spinner-funksjonalitet: Vis spinner på setUrlButton
   showSpinner(setUrlButton, 'Henter...');
 
   if (!currentChatId) {
@@ -737,7 +736,7 @@ async function onSetUrl() {
   }
 
   const url = urlInput.value.trim();
-  const maxDepth = 1; // Juster etter behov
+  const maxDepth = 1;
   if (!url) {
     alert("Vennligst skriv inn en URL.");
     hideSpinner(setUrlButton);
@@ -758,8 +757,7 @@ async function onSetUrl() {
       throw new Error(`HTTP error! status: ${resp.status}`);
     }
 
-    const data = await resp.json();
-    alert(data.message);
+    await resp.json();
     urlInput.value = '';
   } catch (error) {
     console.error("Feil ved innstilling av URL:", error);
