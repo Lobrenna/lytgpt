@@ -777,7 +777,7 @@ async function onSetUrl() {
     // Legg til melding i chat
     if (typeof data.message === 'string') {
       appendMessageToChat({
-        role: 'assistant',
+        role: 'system',
         content: data.message
       });
     }
