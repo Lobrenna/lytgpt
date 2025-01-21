@@ -481,13 +481,18 @@ async function onNewChat() {
       console.log("Reset modell til første tilgjengelige:", firstModel);
     }
 
-    // Finn form-block-2 som inneholder file upload
-    const fileUploadBlock = document.querySelector('.form-block-2:not(.newchat):not(.url)');
-    if (fileUploadBlock) {
-      const fileUploadForm = fileUploadBlock.querySelector('form');
-      if (fileUploadForm) {
+    // Finn form-block-2 som inneholder "Context file upload" label
+    const fileUploadBlocks = document.querySelectorAll('.form-block-2');
+    const contextFileUploadBlock = Array.from(fileUploadBlocks).find(block => {
+      const label = block.querySelector('label');
+      return label && label.textContent === 'Context file upload';
+    });
+
+    if (contextFileUploadBlock) {
+      const form = contextFileUploadBlock.querySelector('form');
+      if (form) {
         // Finn alle file upload divs
-        const fileUploadDivs = fileUploadForm.querySelectorAll('.w-file-upload');
+        const fileUploadDivs = form.querySelectorAll('.w-file-upload');
         console.log("Fant", fileUploadDivs.length, "file upload elementer");
 
         // Behold kun det første elementet
@@ -495,17 +500,15 @@ async function onNewChat() {
           const firstUploadDiv = fileUploadDivs[0];
           
           // Fjern alle andre file upload divs
-          fileUploadDivs.forEach((div, index) => {
-            if (index > 0) {
-              div.remove();
-            }
-          });
+          for (let i = fileUploadDivs.length - 1; i > 0; i--) {
+            console.log("Fjerner ekstra file upload element");
+            fileUploadDivs[i].remove();
+          }
 
           // Reset det første elementet
           const defaultView = firstUploadDiv.querySelector('.w-file-upload-default');
           const successView = firstUploadDiv.querySelector('.w-file-upload-success');
           const fileInput = firstUploadDiv.querySelector('.w-file-upload-input');
-          const fileNameDiv = firstUploadDiv.querySelector('.w-file-upload-file-name');
 
           if (defaultView) {
             defaultView.classList.remove('w-hidden');
@@ -519,6 +522,9 @@ async function onNewChat() {
             fileInput.value = '';
             fileInput.removeAttribute('data-value');
           }
+
+          // Reset file name
+          const fileNameDiv = firstUploadDiv.querySelector('.w-file-upload-file-name');
           if (fileNameDiv) {
             fileNameDiv.textContent = '';
           }
