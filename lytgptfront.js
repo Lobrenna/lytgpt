@@ -698,6 +698,9 @@ async function onSetUrl() {
     // Oppdater file upload UI
     const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
     if (contextFileUpload) {
+      // Sett filnavnet som data-value attributt for senere bruk
+      contextFileUpload.setAttribute('data-value', data.context_file);
+      
       const uploadWrapper = contextFileUpload.closest('.w-file-upload');
       const uploadSuccess = uploadWrapper.querySelector('.w-file-upload-success');
       const uploadDefault = uploadWrapper.querySelector('.w-file-upload-default');
