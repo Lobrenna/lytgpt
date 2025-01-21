@@ -475,6 +475,40 @@ async function onNewChat() {
     // Spinner-funksjonalitet: Vis spinner på newChatButton
     showSpinner(newChatButton, 'Oppretter ny chat...');
 
+    // Reset alle file inputs
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    fileInputs.forEach(input => {
+      input.value = '';
+      const uploadDiv = input.closest('.w-file-upload');
+      if (uploadDiv) {
+        // Reset success view
+        const successView = uploadDiv.querySelector('.w-file-upload-success');
+        if (successView) {
+          successView.classList.add('w-hidden');
+        }
+        // Reset upload view
+        const uploadView = uploadDiv.querySelector('.w-file-upload-default');
+        if (uploadView) {
+          uploadView.classList.remove('w-hidden');
+        }
+      }
+    });
+
+    // Reset chat input
+    if (chatInput) {
+      chatInput.value = '';
+    }
+
+    // Reset long context input hvis det finnes
+    if (longContextInput) {
+      longContextInput.value = '';
+    }
+
+    // Reset long context file input hvis det finnes
+    if (longContextFileInput) {
+      longContextFileInput.value = '';
+    }
+
     const chatId = await createNewChat();
     console.log("Backend returnerte chatId:", chatId);
     currentChatId = chatId; // Sett currentChatId til den unike ID-en
@@ -483,11 +517,18 @@ async function onNewChat() {
     await fetchChats();
     if (chatSelector) {
       chatSelector.value = currentChatId;
-      await loadChat(currentChatId);
     }
 
+    // Tøm chat-messages
     if (chatMessages) {
       chatMessages.innerHTML = '';
+    }
+
+    // Reset selectedModel til standard modell hvis den er satt
+    if (modelSelector) {
+      const defaultModel = modelSelector.options[0].value;
+      modelSelector.value = defaultModel;
+      selectedModel = defaultModel;
     }
 
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
