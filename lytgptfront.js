@@ -238,14 +238,23 @@ async function createNewChat() {
     throw error;
   }
 }
+/**
+ * sendMessage - Hjelpefunksjon for å sende meldinger til backend
+ * @param {string} chatId - ID til chatten
+ * @param {string} message - Melding som skal sendes
+ * @returns {object} - Respons fra backend
+ */
 async function sendMessage(chatId, message) {
   if (!chatId) {
     throw new Error('Chat ID er påkrevd');
   }
 
-  let url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
-  let method = 'POST';
-  let formData = new FormData();
+  const encodedChatId = encodeURIComponent(chatId);
+  const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+
+  console.log("Sending message to URL:", url);
+
+  const formData = new FormData();
   formData.append('message', message);
   formData.append('model', selectedModel);
 
@@ -274,14 +283,9 @@ async function sendMessage(chatId, message) {
     formData.append('files', file);
   });
 
-  // Hvis det er filer, kan du vurdere å bruke /chat/long-context
-  if (backendFiles.length > 0 || manualFiles.length > 0) {
-    url = `${API_BASE_URL}/chat/long-context`;
-  }
-
   try {
     const response = await fetch(url, {
-      method: method,
+      method: 'POST',
       body: formData,
     });
 
@@ -355,6 +359,7 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
 
 /**
  * onNewChat - Håndterer klikk på new-chat-button
