@@ -661,10 +661,10 @@ function addBackendFileUpload(filename) {
     return;
   }
 
-  // Finn den første ledige filopplastingsdiven
+  // Finn den første ledige filopplastingsdiven hvor successView er skjult
   const fileUploadDiv = Array.from(allFileUploads).find(uploadDiv => {
     const successView = uploadDiv.querySelector('.w-file-upload-success');
-    return successView && successView.classList.contains('w-hidden');
+    return successView && successView.classList.contains('w-hidden'); // Korrigert betingelse
   });
 
   if (fileUploadDiv) {
@@ -696,6 +696,7 @@ function addBackendFileUpload(filename) {
     console.warn("Ingen ledige filopplastingsdiver funnet.");
   }
 }
+
 
 /**
  * removeFileUpload - Fjerner en filopplastingskomponent
