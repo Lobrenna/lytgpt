@@ -103,39 +103,40 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-
-/**
- * populateLongSelector - Henter long-context alternativer fra backend og fyller <select>
- */
 async function populateLongSelector() {
-  if (!longSelector) return; // Hvis <select id="long-selector"> ikke eksisterer
+  const longSelector = document.getElementById("long-selector");
+  if (!longSelector) return;
+
   try {
-    const response = await fetch(`${API_BASE_URL}/long-context-options`);
+    const response = await fetch("http://localhost:8000/long-context-options");
     if (!response.ok) {
       throw new Error(`Feil: HTTP ${response.status}`);
     }
     const options = await response.json();
-
+    
     // Tøm <select>
     longSelector.innerHTML = "";
 
-    // Legg til et tomt alternativ først (for "ingen valgt")
+    // Legg til et tomt valg først
     const emptyOption = document.createElement("option");
     emptyOption.value = "";
-    emptyOption.textContent = "-- Velg en long-context --";
+    emptyOption.textContent = "-- Ingen valgt --";
     longSelector.appendChild(emptyOption);
 
-    // Legg til øvrige alternativer
-    for (const [key, value] of Object.entries(options)) {
-      const option = document.createElement("option");
-      option.value = key;
-      option.textContent = key;
-      longSelector.appendChild(option);
+    // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
+    for (const key in options) {
+      if (options.hasOwnProperty(key)) {
+        const option = document.createElement("option");
+        option.value = key;          // "Claude docs"
+        option.textContent = key;    // vises i UI
+        longSelector.appendChild(option);
+      }
     }
   } catch (error) {
     console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
+
 
 /**
  * appendMessageToChat
@@ -229,34 +230,38 @@ async function createNewChat() {
     throw error;
   }
 }
-
 /**
  * sendMessage - Hjelpefunksjon for å sende meldinger til backend
+ * @param {string} chatId - Chat-ID som meldingen skal sendes til
+ * @param {string} message - Selve meldingen (tekst)
+ * @returns {object} - Respons fra backend i JSON-format
  */
 async function sendMessage(chatId, message) {
   if (!chatId) {
     throw new Error('Chat ID er påkrevd');
   }
 
+  // Klargjør endepunkt-URL
   const encodedChatId = encodeURIComponent(chatId);
   const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-
   console.log("Sending message to URL:", url);
 
+  // Opprett FormData
   const formData = new FormData();
   formData.append('message', message);
   formData.append('model', selectedModel);
 
-  // === Nytt: Hent verdi fra long-selector
+  // Hent valgt long-context (fra <select id="long-selector">)
+  const longSelector = document.getElementById('long-selector');
   if (longSelector) {
-    const selectedLongContext = longSelector.value; // f.eks. "Gemini docs" eller tom streng
+    const selectedLongContext = longSelector.value; // f.eks. "Gemini docs" eller tom/ingen verdi
     if (selectedLongContext) {
       console.log("Sender long_context_selection:", selectedLongContext);
       formData.append('long_context_selection', selectedLongContext);
     }
   }
 
-  // Hent backend-filer fra data-attributter
+  // Hent backend-filer og manuelle filer
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
   const backendFiles = [];
   const manualFiles = [];
@@ -274,12 +279,12 @@ async function sendMessage(chatId, message) {
   console.log("Backend files to send:", backendFiles);
   console.log("Manual files to send:", manualFiles);
 
-  // Append 'backend_files'
+  // Legg til 'backend_files' i formData
   backendFiles.forEach(backendFile => {
     formData.append('backend_files', backendFile);
   });
 
-  // Append 'files'
+  // Legg til lokale filer i formData
   manualFiles.forEach(file => {
     formData.append('files', file);
   });
@@ -289,16 +294,23 @@ async function sendMessage(chatId, message) {
       method: 'POST',
       body: formData,
     });
+
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+      throw new Error(
+        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+        JSON.stringify(errorData)
+      );
     }
+
+    // Returner JSON-respons
     return await response.json();
   } catch (error) {
     console.error("Feil ved sending av melding:", error);
     throw error;
   }
 }
+
 
 /**
  * onSendMessage - Når brukeren trykker "Send"
