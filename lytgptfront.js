@@ -273,6 +273,10 @@ async function sendMessage(chatId, message) {
     }
   });
 
+  // Logg backendFiles og manualFiles
+  console.log("Backend files to send:", backendFiles);
+  console.log("Manual files to send:", manualFiles);
+
   // Append 'backend_files' som separate oppføringer
   backendFiles.forEach(backendFile => {
     formData.append('backend_files', backendFile);
@@ -300,6 +304,7 @@ async function sendMessage(chatId, message) {
     throw error;
   }
 }
+
 
 /**
  * onSendMessage - Håndterer sending av meldinger
