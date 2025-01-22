@@ -336,6 +336,13 @@ async function onSendMessage() {
       generatingMessage.parentNode.removeChild(generatingMessage);
     }
 
+    // Log detaljer om responsen
+    console.log("Selected Model:", data.selected_model);
+    console.log("Context Length:", data.context_length);
+    console.log("Estimated Tokens:", data.estimated_tokens);
+    console.log("Response:", data.response);
+    console.log("New Chat ID:", data.new_chat_id);
+
     // Vis modellinfo hvis tilgjengelig
     if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
       const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
@@ -889,7 +896,7 @@ async function fetchChats(autoLoad = true) {
       chatSelector.innerHTML = '';
       chats.forEach(chat => {
         const chatTitle = typeof chat === 'string' ? chat : chat.title;
-        console.log("fetchChats: Legger til chat:", chatTitle);
+        //console.log("fetchChats: Legger til chat:", chatTitle);
         const option = document.createElement('option');
         option.value = chatTitle;
         option.textContent = chatTitle;
