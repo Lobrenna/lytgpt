@@ -741,7 +741,7 @@ async function onSetUrl() {
     return;
   }
 
-  showSpinner(setUrlButton, 'Henter...');
+  showSpinner(setUrlButton, 'Scraper...');
 
   if (!currentChatId) {
     try {
