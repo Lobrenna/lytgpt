@@ -253,25 +253,22 @@ async function sendMessage(chatId, message) {
   const encodedChatId = encodeURIComponent(chatId);
   const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
 
-  console.log("Sending message to URL:", url); // Debug log
+  console.log("Sending message to URL:", url);
 
   const formData = new FormData();
   formData.append('message', message);
-  formData.append('model', selectedModel); // Sørg for at dette er korrekt
+  formData.append('model', selectedModel);
 
-  // Hent manuelle filer fra filinput
+  // Hent backend-filer fra data-attributter
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  fileInputs.forEach(input => {
-    if (input.files && input.files[0]) {
-      formData.append('files', input.files[0]);
-    }
-  });
-
-  // Hent backend-filer fra data-attributt
   fileInputs.forEach(input => {
     const backendFile = input.getAttribute('data-backend-file');
     if (backendFile) {
       formData.append('backend_files', backendFile);
+    }
+    // Legg til manuelle filer
+    if (input.files && input.files[0]) {
+      formData.append('files', input.files[0]);
     }
   });
 
