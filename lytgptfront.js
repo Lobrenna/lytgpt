@@ -252,18 +252,32 @@ async function sendMessage(chatId, message) {
 
   const encodedChatId = encodeURIComponent(chatId);
   const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-  
+
   console.log("Sending message to URL:", url); // Debug log
-  
+
+  const formData = new FormData();
+  formData.append('message', message);
+  formData.append('model', selectedModel); // Sørg for at dette er korrekt
+
+  // Hent manuelle filer fra filinput
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  fileInputs.forEach(input => {
+    if (input.files && input.files[0]) {
+      formData.append('files', input.files[0]);
+    }
+  });
+
+  // Hent backend-filer fra data-attributt
+  fileInputs.forEach(input => {
+    const backendFile = input.getAttribute('data-backend-file');
+    if (backendFile) {
+      formData.append('backend_files', backendFile);
+    }
+  });
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message: message,
-      model: selectedModel  // Bruk 'model' som backend forventer
-    })
+    body: formData,
   });
 
   if (!response.ok) {
@@ -281,95 +295,32 @@ async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
-  
+
   // 1. Vis brukerens melding først
   appendMessageToChat('user', renderMarkdown(message));
   chatInput.value = '';
 
-  const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  let hasFiles = false;
-  const formData = new FormData();
-  formData.append('message', message);
-
-  // Sjekk om det er filer
-  fileInputs.forEach((input) => {
-    const uploadDiv = input.closest('.w-file-upload');
-    const successView = uploadDiv?.querySelector('.w-file-upload-success');
-
-    if (input.files && 
-        input.files[0] && 
-        successView && 
-        !successView.classList.contains('w-hidden')) {
-      formData.append('files', input.files[0]);
-      hasFiles = true;
-    }
-  });
-
+  // Fjern eventuell tidligere generering av svar
   const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
   showSpinner(sendButton, 'Sender...');
 
   try {
     let data;
 
-    if (hasFiles) {
-      if (selectedModel) {
-        formData.append('preferred_model', selectedModel);
-      }
+    console.log("Sender melding til backend med både manuelle og backend-filer.");
 
-      console.log("Sender long-context request med formData:", Object.fromEntries(formData));
+    // Send melding med begge typer filer
+    data = await sendMessage(currentChatId, message);
+    console.log("Mottatt data fra server:", data);
 
-      const response = await fetch(`${API_BASE_URL}/chat/long-context`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-      }
-
-      data = await response.json();
-      console.log("Mottatt data fra long-context:", {
-        new_chat_id: data.new_chat_id,
-        selected_model: data.selected_model,
-        context_length: data.context_length,
-        estimated_tokens: data.estimated_tokens,
-        response_type: typeof data.response,
-        response_starts_with: data.response.substring(0, 100),
-        full_response: data.response
-      });
-
-      // Fjern "Genererer svar..." meldingen
-      if (generatingMessage && generatingMessage.parentNode) {
-        generatingMessage.parentNode.removeChild(generatingMessage);
-      }
-
-      // Vis modellinfo
-      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-
-    } else {
-      // Vanlig chat uten filer
-      if (!currentChatId) {
-        currentChatId = await createNewChat();
-        console.log("Opprettet ny chat med ID:", currentChatId);
-      }
-
-      console.log("Sender vanlig melding til chat:", currentChatId);
-      const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message: message })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      data = await response.json();
+    // Fjern "Genererer svar..." meldingen
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
     }
+
+    // Vis modellinfo
+    const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+    appendMessageToChat('system', modelInfo);
 
     // Formater og vis svaret med markdown
     appendMessageToChat('assistant', renderMarkdown(data.response));
@@ -424,6 +375,7 @@ async function onNewChat() {
     const fileInput = document.querySelector('.w-file-upload-input');
     if (fileInput) {
       fileInput.value = '';
+      fileInput.removeAttribute('data-backend-file'); // Fjern eventuelle backend-filreferanser
     }
 
     // Fjern den ekstra file upload widgeten hvis den eksisterer
@@ -521,6 +473,7 @@ async function onUploadFiles() {
     // Tøm alle file inputs
     fileInputs.forEach(input => {
       input.value = '';
+      input.removeAttribute('data-backend-file'); // Fjern eventuelle backend-filreferanser
     });
   } catch (error) {
     console.error("Feil ved opplasting av filer:", error);
@@ -657,6 +610,95 @@ function showError(message) {
   }
 }
 
+/**
+ * addBackendFileUpload - Legger til en filopplastingskomponent fra backend
+ * @param {string} filename - Navnet på filen fra backend
+ */
+function addBackendFileUpload(filename) {
+  const allFileUploads = document.querySelectorAll('.w-file-upload');
+  const selectedFilesCount = Array.from(allFileUploads).filter(uploadDiv => {
+    const successView = uploadDiv.querySelector('.w-file-upload-success');
+    return successView && !successView.classList.contains('w-hidden');
+  }).length;
+
+  if (selectedFilesCount >= 5) {
+    alert("Maks antall opplastede filer nådd.");
+    return;
+  }
+
+  // Finn den første ledige filopplastingsdiven
+  const fileUploadDiv = Array.from(allFileUploads).find(uploadDiv => {
+    const successView = uploadDiv.querySelector('.w-file-upload-success');
+    return successView && successView.classList.contains('w-hidden');
+  });
+
+  if (fileUploadDiv) {
+    // Sett filnavn og vis success state
+    const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
+    const uploadDefault = fileUploadDiv.querySelector('.w-file-upload-default');
+    const fileNameDiv = uploadSuccess.querySelector('.w-file-upload-file-name');
+
+    if (uploadSuccess && uploadDefault && fileNameDiv) {
+      fileNameDiv.textContent = filename;
+      uploadSuccess.classList.remove('w-hidden');
+      uploadDefault.classList.add('w-hidden');
+
+      // Lagre backend-referansen i et data-attributt
+      const fileInput = fileUploadDiv.querySelector('.w-file-upload-input');
+      if (fileInput) {
+        fileInput.setAttribute('data-backend-file', filename);
+      }
+
+      // Legg til fjerning av backend-fil
+      const removeButton = uploadSuccess.querySelector('.w-file-remove-link');
+      if (removeButton) {
+        removeButton.addEventListener('click', function () {
+          removeFileUpload(fileUploadDiv, true);
+        });
+      }
+    }
+  } else {
+    console.warn("Ingen ledige filopplastingsdiver funnet.");
+  }
+}
+
+/**
+ * removeFileUpload - Fjerner en filopplastingskomponent
+ * @param {HTMLElement} fileUploadDiv - Filopplastingsdiven som skal fjernes
+ * @param {boolean} isBackend - Indikerer om filen er fra backend
+ */
+function removeFileUpload(fileUploadDiv, isBackend = false) {
+  if (!fileUploadDiv) return;
+
+  if (isBackend) {
+    // Fjern backend-referanse
+    const fileInput = fileUploadDiv.querySelector('.w-file-upload-input');
+    if (fileInput) {
+      fileInput.removeAttribute('data-backend-file');
+    }
+  } else {
+    // Fjern faktisk fil fra input
+    const fileInput = fileUploadDiv.querySelector('.w-file-upload-input');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  // Oppdater UI
+  const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
+  const uploadDefault = fileUploadDiv.querySelector('.w-file-upload-default');
+  const fileNameDiv = uploadSuccess.querySelector('.w-file-upload-file-name');
+
+  if (uploadSuccess && uploadDefault && fileNameDiv) {
+    fileNameDiv.textContent = '';
+    uploadSuccess.classList.add('w-hidden');
+    uploadDefault.classList.remove('w-hidden');
+  }
+}
+
+/**
+ * onSetUrl - Håndterer scraping av URL og mottak av backend-fil
+ */
 async function onSetUrl() {
   showSpinner(setUrlButton, 'Henter...');
 
@@ -695,21 +737,8 @@ async function onSetUrl() {
     const data = await resp.json();
     console.log("URL scrapet og fil lastet:", data.context_file);
 
-    // Oppdater file upload UI
-    const contextFileUpload = document.querySelector('.form-block-2 [data-name="File"]');
-    if (contextFileUpload) {
-      // Sett filnavnet som data-value attributt for senere bruk
-      contextFileUpload.setAttribute('data-value', data.context_file);
-      
-      const uploadWrapper = contextFileUpload.closest('.w-file-upload');
-      const uploadSuccess = uploadWrapper.querySelector('.w-file-upload-success');
-      const uploadDefault = uploadWrapper.querySelector('.w-file-upload-default');
-      
-      // Sett filnavn og vis success state
-      uploadSuccess.querySelector('.w-file-upload-file-name').textContent = data.context_file;
-      uploadDefault.style.display = 'none';
-      uploadSuccess.style.display = 'inline-block';
-    }
+    // Oppdater file upload UI med backend-fil
+    addBackendFileUpload(data.context_file);
 
     urlInput.value = '';
   } catch (error) {
@@ -880,6 +909,14 @@ async function loadChat(chatId) {
       }
       displayChatMessages(chat.messages);
       console.log("Lastet chat med ID:", currentChatId, "Modell:", selectedModel);
+
+      // Sjekk om chat har context_files og oppdater UI
+      if (chat.context_files && Array.isArray(chat.context_files)) {
+        chat.context_files.forEach(filename => {
+          addBackendFileUpload(filename);
+        });
+      }
+
     } else {
       console.error("Feil ved lasting av chat:", response.status, response.statusText);
       alert("Feil ved lasting av chat.");
@@ -895,7 +932,7 @@ async function loadChat(chatId) {
  */
 function handleFileSelection(event) {
   console.log("File selection triggered");
-  
+
   const fileUploadDiv = event.target.closest('.w-file-upload');
   if (!fileUploadDiv) {
       console.log("File upload div not found");
@@ -925,14 +962,22 @@ function handleFileSelection(event) {
       // Update UI for the selected file
       const file = event.target.files[0];
       const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
-      const successView = fileUploadDiv.querySelector('.w-file-upload-success');
+      const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
       const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
 
-      if (defaultView && successView && fileNameDiv) {
-          defaultView.classList.add('w-hidden');
-          successView.classList.remove('w-hidden');
+      if (defaultView && uploadSuccess && fileNameDiv) {
           fileNameDiv.textContent = file.name;
+          uploadSuccess.classList.remove('w-hidden');
+          defaultView.classList.add('w-hidden');
           console.log("UI updated for file:", file.name);
+      }
+
+      // Legg til fjerning av fil
+      const removeButton = uploadSuccess.querySelector('.w-file-remove-link');
+      if (removeButton) {
+        removeButton.addEventListener('click', function () {
+          removeFileUpload(fileUploadDiv);
+        });
       }
 
       // Only add a new upload input if we have not reached the max
@@ -972,7 +1017,7 @@ function handleFileSelection(event) {
             <div class="w-file-upload-success w-hidden">
               <div class="w-file-upload-file">
                 <div class="w-file-upload-file-name"></div>
-                <div role="button" class="w-file-remove-link">
+                <div aria-label="Remove file" role="button" tabindex="0" class="w-file-remove-link">
                   <div class="w-icon-file-upload-remove"></div>
                 </div>
               </div>
@@ -985,23 +1030,22 @@ function handleFileSelection(event) {
                 Upload failed. Max size for files is 10 MB.
               </div>
             </div>`;
-
+  
           // Append the new upload div
           fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
-
+  
           // Add event listeners to the new input and remove button
           const newInput = newUploadDiv.querySelector('.w-file-upload-input');
           if (newInput) {
-              console.log("Adding event listener to new input:", newInput.id);
-              newInput.addEventListener('change', handleFileSelection);
+            console.log("Adding event listener to new input:", newInput.id);
+            newInput.addEventListener('change', handleFileSelection);
           }
-
-          const removeButton = newUploadDiv.querySelector('.w-file-remove-link');
-          if (removeButton) {
-              removeButton.addEventListener('click', function() {
-                  console.log("Remove button clicked");
-                  newUploadDiv.remove(); // Fjerner hele filopplastingsfeltet
-              });
+  
+          const newRemoveButton = newUploadDiv.querySelector('.w-file-remove-link');
+          if (newRemoveButton) {
+            newRemoveButton.addEventListener('click', function () {
+              removeFileUpload(newUploadDiv);
+            });
           }
       }
   }
@@ -1090,6 +1134,21 @@ function setupEventListeners() {
 
   console.log("Event listeners setup complete");
 }
+
+/**
+ * updateChatSelector - Oppdaterer chat-selector med ny chat-id
+ * @param {string} newChatId - Den nye chat-id-en som skal settes
+ */
+async function updateChatSelector(newChatId) {
+  await fetchChats();
+  if (chatSelector) {
+    chatSelector.value = newChatId;
+    await loadChat(newChatId);
+  }
+}
+
+// Sikre at removeFileUpload er tilgjengelig globalt
+window.removeFileUpload = removeFileUpload;
 
 /**
  * updateChatSelector - Oppdaterer chat-selector med ny chat-id
