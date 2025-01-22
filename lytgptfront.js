@@ -261,28 +261,45 @@ async function sendMessage(chatId, message) {
 
   // Hent backend-filer fra data-attributter
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  const backendFiles = [];
+  const manualFiles = [];
+
   fileInputs.forEach(input => {
     const backendFile = input.getAttribute('data-backend-file');
     if (backendFile) {
-      formData.append('backend_files', backendFile);
+      backendFiles.push(backendFile);
     }
-    // Legg til manuelle filer
     if (input.files && input.files[0]) {
-      formData.append('files', input.files[0]);
+      manualFiles.push(input.files[0]);
     }
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData,
+  // Append 'backend_files' som separate oppføringer
+  backendFiles.forEach(backendFile => {
+    formData.append('backend_files', backendFile);
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
-  }
+  // Append 'files' som separate oppføringer
+  manualFiles.forEach(file => {
+    formData.append('files', file);
+  });
 
-  return await response.json();
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Feil ved sending av melding:", error);
+    throw error;
+  }
 }
 
 /**
