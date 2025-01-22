@@ -21,6 +21,7 @@ const fileList = document.getElementById('file-list'); // For å vise opplastede
 // State
 let currentChatId = null;
 let selectedModel = null;
+let isScraping = false; // Ny tilstand for å forhindre multiple scraping
 
 // Konfigurer marked.js for å integrere med Prism.js
 const renderer = new marked.Renderer();
@@ -88,6 +89,15 @@ function renderMarkdown(markdownText) {
 function showSpinner(buttonElement, message) {
   if (!buttonElement) return;
 
+  // Sjekk om en scraping allerede pågår
+  if (isScraping) {
+    console.warn('Scraping already in progress.');
+    return;
+  }
+
+  // Sett tilstand til scraping
+  isScraping = true;
+
   // Lagre original innhold
   buttonElement.dataset.originalText = buttonElement.innerHTML;
 
@@ -112,6 +122,9 @@ function hideSpinner(buttonElement) {
 
   // Aktiver knappen
   buttonElement.disabled = false;
+
+  // Sett tilstand til ikke-scraping
+  isScraping = false;
 }
 
 /**
@@ -125,10 +138,16 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+/**
+ * appendMessageToChat(role, htmlContent)
+ *  - Oppretter en <div> med klasser 'chat-message' + role
+ *  - Legger inn 'htmlContent'
+ *  - Kjører Prism.highlightElement for syntax highlighting
+ */
 function appendMessageToChat(role, htmlContent) {
   if (!chatMessages) {
-      console.error("Chat messages element not found.");
-      return;
+    console.error("Chat messages element not found.");
+    return;
   }
   const msgEl = document.createElement('div');
   msgEl.classList.add('chat-message', role);
@@ -136,35 +155,39 @@ function appendMessageToChat(role, htmlContent) {
 
   // For brukerens meldinger, fjern context-delen hvis den finnes
   if (role === 'user') {
-      if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
-          const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
-          if (questionMatch) {
-              htmlContent = questionMatch[1].trim();
-          }
+    // Sjekk om innholdet starter med "Context:"
+    if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
+      // Finn spørsmålet (alt etter "Spørsmål:")
+      const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
+      if (questionMatch) {
+        htmlContent = questionMatch[1].trim();
       }
-      htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
+    }
+    
+    // Fjern <p> tags fra brukerens meldinger
+    htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
   }
 
-  // Konverter til markdown hvis nødvendig
+  // Sjekk om innholdet ser ut som ren kode (ingen markdown)
   if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
-      htmlContent = renderMarkdown(htmlContent);
+    // Konverter til markdown
+    htmlContent = renderMarkdown(htmlContent);
   }
 
   msgEl.innerHTML = htmlContent;
 
-  // Syntax-highlighting
+  // Kjør syntax-highlighting for hvert <code> element
   const codeBlocks = msgEl.querySelectorAll('pre code');
   codeBlocks.forEach((block) => {
-      Prism.highlightElement(block);
+    Prism.highlightElement(block);
   });
 
   chatMessages.appendChild(msgEl);
   chatMessages.scrollTo({
-      top: chatMessages.scrollHeight,
-      behavior: 'smooth'
+    top: chatMessages.scrollHeight,
+    behavior: 'smooth'
   });
 }
-
 
 /**
  * displayChatMessages
@@ -580,7 +603,7 @@ async function onDeleteChat() {
   }
 
   try {
-    showSpinner(deleteChatButton);
+    showSpinner(deleteChatButton, 'Sletter...');
     await deleteChat(currentChatId);
   } catch (error) {
     console.error("onDeleteChat: Feil:", error);
@@ -608,21 +631,6 @@ async function onChatChange(e) {
   } else {
     await loadChat(chosen);
   }
-}
-
-// URL input og scraping
-if (urlInput && setUrlButton) {
-  urlInput.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      onSetUrl();
-    }
-  });
-
-  setUrlButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    onSetUrl();
-  });
 }
 
 // Hjelpefunksjon for å vise feilmeldinger
@@ -727,6 +735,12 @@ function removeFileUpload(fileUploadDiv, isBackend = false) {
  * onSetUrl - Håndterer scraping av URL og mottak av backend-fil
  */
 async function onSetUrl() {
+  // Sjekk om en scraping allerede pågår
+  if (isScraping) {
+    console.warn('Scraping already in progress.');
+    return;
+  }
+
   showSpinner(setUrlButton, 'Henter...');
 
   if (!currentChatId) {
@@ -1057,17 +1071,17 @@ function handleFileSelection(event) {
                 Upload failed. Max size for files is 10 MB.
               </div>
             </div>`;
-  
+
           // Append the new upload div
           fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
-  
+
           // Add event listeners to the new input and remove button
           const newInput = newUploadDiv.querySelector('.w-file-upload-input');
           if (newInput) {
             console.log("Adding event listener to new input:", newInput.id);
             newInput.addEventListener('change', handleFileSelection);
           }
-  
+
           const newRemoveButton = newUploadDiv.querySelector('.w-file-remove-link');
           if (newRemoveButton) {
             newRemoveButton.addEventListener('click', function () {
@@ -1176,15 +1190,3 @@ async function updateChatSelector(newChatId) {
 
 // Sikre at removeFileUpload er tilgjengelig globalt
 window.removeFileUpload = removeFileUpload;
-
-/**
- * updateChatSelector - Oppdaterer chat-selector med ny chat-id
- * @param {string} newChatId - Den nye chat-id-en som skal settes
- */
-async function updateChatSelector(newChatId) {
-  await fetchChats();
-  if (chatSelector) {
-    chatSelector.value = newChatId;
-    await loadChat(newChatId);
-  }
-}
