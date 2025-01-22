@@ -318,10 +318,6 @@ async function sendMessage(chatId, message) {
   }
 }
 
-
-/**
- * onSendMessage - Håndterer sending av meldinger
- */
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
@@ -384,6 +380,7 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
 
 
 /**
