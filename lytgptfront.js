@@ -238,24 +238,14 @@ async function createNewChat() {
     throw error;
   }
 }
-
-/**
- * sendMessage - Hjelpefunksjon for å sende meldinger til backend
- * @param {string} chatId - ID til chatten
- * @param {string} message - Melding som skal sendes
- * @returns {object} - Respons fra backend
- */
 async function sendMessage(chatId, message) {
   if (!chatId) {
     throw new Error('Chat ID er påkrevd');
   }
 
-  const encodedChatId = encodeURIComponent(chatId);
-  const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-
-  console.log("Sending message to URL:", url);
-
-  const formData = new FormData();
+  let url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
+  let method = 'POST';
+  let formData = new FormData();
   formData.append('message', message);
   formData.append('model', selectedModel);
 
@@ -284,9 +274,14 @@ async function sendMessage(chatId, message) {
     formData.append('files', file);
   });
 
+  // Hvis det er filer, kan du vurdere å bruke /chat/long-context
+  if (backendFiles.length > 0 || manualFiles.length > 0) {
+    url = `${API_BASE_URL}/chat/long-context`;
+  }
+
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method: method,
       body: formData,
     });
 
@@ -332,12 +327,23 @@ async function onSendMessage() {
       generatingMessage.parentNode.removeChild(generatingMessage);
     }
 
-    // Vis modellinfo
-    const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
-    appendMessageToChat('system', modelInfo);
+    // Vis modellinfo hvis tilgjengelig
+    if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst: ${formatFileSize(data.context_length)} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+    } else {
+      console.warn("Manglende felter i respons fra server:", data);
+    }
 
     // Formater og vis svaret med markdown
     appendMessageToChat('assistant', renderMarkdown(data.response));
+
+    // Hvis en ny chat-id er returnert, oppdater den
+    if (data.new_chat_id) {
+      currentChatId = data.new_chat_id;
+      console.log("Oppdatert currentChatId til:", currentChatId);
+      await updateChatSelector(currentChatId);
+    }
 
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
