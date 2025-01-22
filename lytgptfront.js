@@ -125,16 +125,10 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-/**
- * appendMessageToChat(role, htmlContent)
- *  - Oppretter en <div> med klasser 'chat-message' + role
- *  - Legger inn 'htmlContent'
- *  - Kjører Prism.highlightElement for syntax highlighting
- */
 function appendMessageToChat(role, htmlContent) {
   if (!chatMessages) {
-    console.error("Chat messages element not found.");
-    return;
+      console.error("Chat messages element not found.");
+      return;
   }
   const msgEl = document.createElement('div');
   msgEl.classList.add('chat-message', role);
@@ -142,39 +136,35 @@ function appendMessageToChat(role, htmlContent) {
 
   // For brukerens meldinger, fjern context-delen hvis den finnes
   if (role === 'user') {
-    // Sjekk om innholdet starter med "Context:"
-    if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
-      // Finn spørsmålet (alt etter "Spørsmål:")
-      const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
-      if (questionMatch) {
-        htmlContent = questionMatch[1].trim();
+      if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
+          const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
+          if (questionMatch) {
+              htmlContent = questionMatch[1].trim();
+          }
       }
-    }
-    
-    // Fjern <p> tags fra brukerens meldinger
-    htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
+      htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
   }
 
-  // Sjekk om innholdet ser ut som ren kode (ingen markdown)
+  // Konverter til markdown hvis nødvendig
   if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
-    // Konverter til markdown
-    htmlContent = renderMarkdown(htmlContent);
+      htmlContent = renderMarkdown(htmlContent);
   }
 
   msgEl.innerHTML = htmlContent;
 
-  // Kjør syntax-highlighting for hvert <code> element
+  // Syntax-highlighting
   const codeBlocks = msgEl.querySelectorAll('pre code');
   codeBlocks.forEach((block) => {
-    Prism.highlightElement(block);
+      Prism.highlightElement(block);
   });
 
   chatMessages.appendChild(msgEl);
   chatMessages.scrollTo({
-    top: chatMessages.scrollHeight,
-    behavior: 'smooth'
+      top: chatMessages.scrollHeight,
+      behavior: 'smooth'
   });
 }
+
 
 /**
  * displayChatMessages
