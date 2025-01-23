@@ -185,12 +185,24 @@ function appendMessageToChat(role, htmlContent) {
  * displayChatMessages
  */
 function displayChatMessages(messages) {
-  clearChatMessages();
-  messages.forEach(msg => {
-    const content = msg.content;
-    const html = renderMarkdown(content);
-    appendMessageToChat(msg.role, html);
+  if (!chatMessages) return;
+  chatMessages.innerHTML = '';
+  messages.forEach(message => {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${message.role}`;
+    
+    // Håndter forskjellige meldingstyper
+    if (message.role === 'sources') {
+      // For kildehenvisninger, bruk pre-formatert tekst
+      messageDiv.innerHTML = `<pre>${message.content}</pre>`;
+    } else {
+      // For vanlige meldinger, bruk markdown-rendering
+      messageDiv.innerHTML = renderMarkdown(message.content);
+    }
+    
+    chatMessages.appendChild(messageDiv);
   });
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function clearChatMessages() {
