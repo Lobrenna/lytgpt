@@ -263,10 +263,10 @@ async function sendMessage(chatId, message) {
   formData.append('message', message);
   formData.append('model', selectedModel);
 
-  // Hent valgt long-context (fra <select id="long-selector">)
+  // Hent valgt long-context
   const longSelector = document.getElementById('long-selector');
   if (longSelector) {
-    const selectedLongContext = longSelector.value; // f.eks. "Gemini docs" eller tom/ingen verdi
+    const selectedLongContext = longSelector.value;
     if (selectedLongContext) {
       console.log("Sender long_context_selection:", selectedLongContext);
       formData.append('long_context_selection', selectedLongContext);
@@ -315,8 +315,14 @@ async function sendMessage(chatId, message) {
       );
     }
 
-    // Returner JSON-respons
-    return await response.json();
+    const data = await response.json();
+    
+    // Håndter sources hvis de finnes i responsen
+    if (data.sources) {
+      appendMessageToChat('sources', data.sources);
+    }
+
+    return data;
   } catch (error) {
     console.error("Feil ved sending av melding:", error);
     throw error;
