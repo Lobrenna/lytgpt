@@ -340,11 +340,59 @@ function updateUIElements(data) {
 }
 
 // Update the onSendMessage function
-async function onSendMessage(event) {
-    if (event && event.preventDefault) {
-        event.preventDefault();
+async function onSendMessage() {
+    if (!chatInput || !chatInput.value.trim()) return;
+
+    const message = chatInput.value.trim();
+
+    // 1. Vis brukerens melding i chatvinduet
+    appendMessageToChat('user', renderMarkdown(message));
+    chatInput.value = '';
+
+    // Midlertidig melding
+    const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+    showSpinner(sendButton, 'Sender...');
+
+    try {
+        if (!currentChatId) {
+            throw new Error('Ingen aktiv chat');
+        }
+
+        let data;
+        console.log("Sender melding til backend...");
+
+        data = await sendMessage(currentChatId, message);
+        console.log("Mottatt data fra server:", data);
+
+        // Fjern "Genererer svar..."
+        if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+        }
+
+        // Vis litt info
+        if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+            const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+            appendMessageToChat('system', modelInfo);
+        }
+
+        appendMessageToChat('assistant', renderMarkdown(data.response));
+
+        // Oppdater chat-id hvis backend returnerer en ny
+        if (data.new_chat_id) {
+            currentChatId = data.new_chat_id;
+            console.log("Oppdatert currentChatId til:", currentChatId);
+            await updateChatSelector(currentChatId);
+        }
+
+    } catch (error) {
+        console.error('Feil ved sending av melding:', error);
+        if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+        }
+        appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+    } finally {
+        hideSpinner(sendButton);
     }
-    await sendMessage();
 }
 
 /**
