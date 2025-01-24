@@ -249,53 +249,53 @@ async function createNewChat() {
  * @returns {object} - Respons fra backend i JSON-format
  */
 async function sendMessage() {
-    const messageInput = document.getElementById('message-input');
-    if (!messageInput) {
-        console.error('Message input element not found');
-        return;
-    }
-
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    // Safely get model selection
-    const modelSelect = document.getElementById('model-selector');
-    const selectedModel = modelSelect ? modelSelect.value : null;
-
-    // Safely get long context selection
-    const longContextSelect = document.getElementById('long-selector');
-    const selectedLongContext = longContextSelect ? longContextSelect.value : null;
-
-    messageInput.value = '';
-    addMessageToChat('user', message);
-    showTypingIndicator();
-
-    const formData = new FormData();
-    formData.append('message', message);
-    if (selectedModel) formData.append('model', selectedModel);
-
-    // Determine which endpoint to use based on selection
-    const isRAG = selectedLongContext && ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
-    const endpoint = isRAG ? '/rag' : '/messages';
-
-    // For RAG, we send the selection key
-    if (isRAG) {
-        formData.append('pkl_file', selectedLongContext);
-    } else {
-        // For regular messages, handle both long context selection and file uploads
-        if (selectedLongContext) {
-            formData.append('long_context_selection', selectedLongContext);
+    try {
+        const messageInput = document.querySelector('#message-input');
+        if (!messageInput) {
+            console.error('Could not find message input element with id "message-input"');
+            return;
         }
-        
-        const fileInput = document.getElementById('file-input');
-        if (fileInput && fileInput.files) {
-            for (const file of fileInput.files) {
-                formData.append('files', file);
+
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Safely get model selection
+        const modelSelect = document.querySelector('#model-selector');
+        const selectedModel = modelSelect ? modelSelect.value : null;
+
+        // Safely get long context selection
+        const longContextSelect = document.querySelector('#long-selector');
+        const selectedLongContext = longContextSelect ? longContextSelect.value : null;
+
+        messageInput.value = '';
+        addMessageToChat('user', message);
+        showTypingIndicator();
+
+        const formData = new FormData();
+        formData.append('message', message);
+        if (selectedModel) formData.append('model', selectedModel);
+
+        // Determine which endpoint to use based on selection
+        const isRAG = selectedLongContext && ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
+        const endpoint = isRAG ? '/rag' : '/messages';
+
+        // For RAG, we send the selection key
+        if (isRAG) {
+            formData.append('pkl_file', selectedLongContext);
+        } else {
+            // For regular messages, handle both long context selection and file uploads
+            if (selectedLongContext) {
+                formData.append('long_context_selection', selectedLongContext);
+            }
+            
+            const fileInput = document.querySelector('#file-input');
+            if (fileInput && fileInput.files) {
+                for (const file of fileInput.files) {
+                    formData.append('files', file);
+                }
             }
         }
-    }
 
-    try {
         const response = await fetch(`/chats/${currentChatId}${endpoint}`, {
             method: 'POST',
             body: formData
@@ -307,92 +307,52 @@ async function sendMessage() {
         }
 
         const data = await response.json();
+        console.log('Server response:', data); // Debug logging
+        
         hideTypingIndicator();
-        addMessageToChat('assistant', data.response);
+        
+        if (data && data.response) {
+            addMessageToChat('assistant', data.response);
+        }
 
-        if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+        // Safely update chat ID if provided
+        if (data && data.new_chat_id && data.new_chat_id !== currentChatId) {
             currentChatId = data.new_chat_id;
             updateChatList();
         }
 
-        if (data.selected_model) {
-            updateModelInfo(data.selected_model);
-        }
-        if (data.context_length) {
-            updateContextLength(data.context_length);
-        }
-        if (data.estimated_tokens) {
-            updateEstimatedTokens(data.estimated_tokens);
-        }
-
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in sendMessage:', error);
         hideTypingIndicator();
         addMessageToChat('system', 'Det oppstod en feil ved sending av meldingen: ' + error.message);
     }
 }
 
-
-/**
- * onSendMessage - Når brukeren trykker "Send"
- */
-async function onSendMessage() {
-  if (!chatInput || !chatInput.value.trim()) return;
-
-  const message = chatInput.value.trim();
-
-  // 1. Vis brukerens melding i chatvinduet
-  appendMessageToChat('user', renderMarkdown(message));
-  chatInput.value = '';
-
-  // Midlertidig melding
-  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-  showSpinner(sendButton, 'Sender...');
-
-  try {
-    let data;
-    console.log("Sender melding til backend med både manuelle og backend-filer.");
-
-    data = await sendMessage(currentChatId, message);
-    console.log("Mottatt data fra server:", data);
-
-    // Fjern "Genererer svar..."
-    if (generatingMessage && generatingMessage.parentNode) {
-      generatingMessage.parentNode.removeChild(generatingMessage);
+// Separate function for updating UI elements
+function updateUIElements(data) {
+    if (!data) return;
+    
+    try {
+        if (data.selected_model && typeof updateModelInfo === 'function') {
+            updateModelInfo(data.selected_model);
+        }
+        if (data.context_length && typeof updateContextLength === 'function') {
+            updateContextLength(data.context_length);
+        }
+        if (data.estimated_tokens && typeof updateEstimatedTokens === 'function') {
+            updateEstimatedTokens(data.estimated_tokens);
+        }
+    } catch (error) {
+        console.error('Error updating UI elements:', error);
     }
+}
 
-    // Vis litt info
-    console.log("Selected Model:", data.selected_model);
-    console.log("Context Length:", data.context_length);
-    console.log("Estimated Tokens:", data.estimated_tokens);
-    console.log("Response:", data.response);
-    console.log("New Chat ID:", data.new_chat_id);
-
-    if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-    } else {
-      console.warn("Manglende felter i respons fra server:", data);
+// Update the onSendMessage function
+async function onSendMessage(event) {
+    if (event && event.preventDefault) {
+        event.preventDefault();
     }
-
-    appendMessageToChat('assistant', renderMarkdown(data.response));
-
-    // Oppdater chat-id hvis backend returnerer en ny
-    if (data.new_chat_id) {
-      currentChatId = data.new_chat_id;
-      console.log("Oppdatert currentChatId til:", currentChatId);
-      await updateChatSelector(currentChatId);
-    }
-
-  } catch (error) {
-    console.error('Feil ved sending av melding:', error);
-    if (generatingMessage && generatingMessage.parentNode) {
-      generatingMessage.parentNode.removeChild(generatingMessage);
-    }
-    appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
-  } finally {
-    hideSpinner(sendButton);
-  }
+    await sendMessage();
 }
 
 /**
