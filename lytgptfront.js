@@ -242,89 +242,81 @@ async function createNewChat() {
     throw error;
   }
 }
-/**
- * sendMessage - Hjelpefunksjon for å sende meldinger til backend
- * @param {string} chatId - Chat-ID som meldingen skal sendes til
- * @param {string} message - Selve meldingen (tekst)
- * @returns {object} - Respons fra backend i JSON-format
- */
-async function sendMessage() {
-    try {
-        const messageInput = document.querySelector('#message-input');
-        if (!messageInput) {
-            console.error('Could not find message input element with id "message-input"');
-            return;
-        }
 
-        const message = messageInput.value.trim();
-        if (!message) return;
+async function sendMessage(chatId, message) {
+    if (!chatId) {
+        throw new Error('Chat ID er påkrevd');
+    }
 
-        // Safely get model selection
-        const modelSelect = document.querySelector('#model-selector');
-        const selectedModel = modelSelect ? modelSelect.value : null;
+    // Klargjør endepunkt-URL
+    const encodedChatId = encodeURIComponent(chatId);
+    
+    // Hent valgt long-context (fra <select id="long-selector">)
+    const longSelector = document.getElementById('long-selector');
+    let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+    
+    // Opprett FormData
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('model', selectedModel);
 
-        // Safely get long context selection
-        const longContextSelect = document.querySelector('#long-selector');
-        const selectedLongContext = longContextSelect ? longContextSelect.value : null;
-
-        messageInput.value = '';
-        addMessageToChat('user', message);
-        showTypingIndicator();
-
-        const formData = new FormData();
-        formData.append('message', message);
-        if (selectedModel) formData.append('model', selectedModel);
-
-        // Determine which endpoint to use based on selection
-        const isRAG = selectedLongContext && ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
-        const endpoint = isRAG ? '/rag' : '/messages';
-
-        // For RAG, we send the selection key
-        if (isRAG) {
-            formData.append('pkl_file', selectedLongContext);
-        } else {
-            // For regular messages, handle both long context selection and file uploads
-            if (selectedLongContext) {
+    if (longSelector) {
+        const selectedLongContext = longSelector.value;
+        if (selectedLongContext) {
+            // Sjekk om dette er en RAG-forespørsel
+            if (['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext)) {
+                url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+                formData.append('pkl_file', selectedLongContext);
+            } else {
                 formData.append('long_context_selection', selectedLongContext);
-            }
-            
-            const fileInput = document.querySelector('#file-input');
-            if (fileInput && fileInput.files) {
-                for (const file of fileInput.files) {
+                
+                // Hent backend-filer og manuelle filer
+                const fileInputs = document.querySelectorAll('.w-file-upload-input');
+                const backendFiles = [];
+                const manualFiles = [];
+
+                fileInputs.forEach(input => {
+                    const backendFile = input.getAttribute('data-backend-file');
+                    if (backendFile) {
+                        backendFiles.push(backendFile);
+                    }
+                    if (input.files && input.files[0]) {
+                        manualFiles.push(input.files[0]);
+                    }
+                });
+
+                // Legg til 'backend_files' i formData
+                backendFiles.forEach(backendFile => {
+                    formData.append('backend_files', backendFile);
+                });
+
+                // Legg til lokale filer i formData
+                manualFiles.forEach(file => {
                     formData.append('files', file);
-                }
+                });
             }
         }
+    }
 
-        const response = await fetch(`/chats/${currentChatId}${endpoint}`, {
+    try {
+        const response = await fetch(url, {
             method: 'POST',
-            body: formData
+            body: formData,
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+            throw new Error(
+                `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+                JSON.stringify(errorData)
+            );
         }
 
-        const data = await response.json();
-        console.log('Server response:', data); // Debug logging
-        
-        hideTypingIndicator();
-        
-        if (data && data.response) {
-            addMessageToChat('assistant', data.response);
-        }
-
-        // Safely update chat ID if provided
-        if (data && data.new_chat_id && data.new_chat_id !== currentChatId) {
-            currentChatId = data.new_chat_id;
-            updateChatList();
-        }
-
+        // Returner JSON-respons
+        return await response.json();
     } catch (error) {
-        console.error('Error in sendMessage:', error);
-        hideTypingIndicator();
-        addMessageToChat('system', 'Det oppstod en feil ved sending av meldingen: ' + error.message);
+        console.error("Feil ved sending av melding:", error);
+        throw error;
     }
 }
 
