@@ -263,14 +263,6 @@ async function onSendMessage() {
   if (longSelector && longSelector.value) {
     formData.append('long_context_selection', longSelector.value);
   }
-  
-  // Legg til eventuelle filer
-  const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  fileInputs.forEach((input, index) => {
-    if (input.files && input.files[0]) {
-      formData.append(`files`, input.files[0]);  // Endret fra file${index + 1} til files
-    }
-  });
 
   try {
     const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
