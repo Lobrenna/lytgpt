@@ -255,7 +255,11 @@ async function sendMessage(chatId, message) {
 
   // Klargjør endepunkt-URL
   const encodedChatId = encodeURIComponent(chatId);
-  const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+  const longContextSelect = document.getElementById('long-selector');
+  const selectedLongContext = longContextSelect.value;
+  const isRAG = selectedLongContext && selectedLongContext.endsWith('.pkl');
+  const endpoint = isRAG ? '/rag' : '/messages';
+  const url = `${API_BASE_URL}/chats/${encodedChatId}${endpoint}`;
   console.log("Sending message to URL:", url);
 
   // Opprett FormData
@@ -264,13 +268,9 @@ async function sendMessage(chatId, message) {
   formData.append('model', selectedModel);
 
   // Hent valgt long-context
-  const longSelector = document.getElementById('long-selector');
-  if (longSelector) {
-    const selectedLongContext = longSelector.value;
-    if (selectedLongContext) {
-      console.log("Sender long_context_selection:", selectedLongContext);
-      formData.append('long_context_selection', selectedLongContext);
-    }
+  if (selectedLongContext) {
+    console.log("Sender long_context_selection:", selectedLongContext);
+    formData.append('long_context_selection', selectedLongContext);
   }
 
   // Hent backend-filer og manuelle filer
@@ -296,10 +296,12 @@ async function sendMessage(chatId, message) {
     formData.append('backend_files', backendFile);
   });
 
-  // Legg til lokale filer i formData
-  manualFiles.forEach(file => {
-    formData.append('files', file);
-  });
+  // Legg til lokale filer i formData hvis ikke RAG
+  if (!isRAG) {
+    manualFiles.forEach(file => {
+      formData.append('files', file);
+    });
+  }
 
   try {
     const response = await fetch(url, {
