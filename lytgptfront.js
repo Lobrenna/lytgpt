@@ -262,11 +262,22 @@ async function sendMessage(chatId, message) {
 
     if (longSelector) {
         const selectedLongContext = longSelector.value;
+        console.log("Valgt long context:", selectedLongContext);
+
         if (selectedLongContext) {
             // Sjekk om dette er en RAG-forespørsel
-            if (['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext)) {
+            const isRAG = ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
+            console.log("Er dette en RAG-forespørsel?", isRAG);
+
+            if (isRAG) {
                 url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-                formData.append('pkl_file', selectedLongContext);
+                formData.append('long_context_selection', selectedLongContext);  // Endret fra pkl_file til long_context_selection
+                console.log("RAG URL:", url);
+                console.log("FormData for RAG:", {
+                    message: formData.get('message'),
+                    model: formData.get('model'),
+                    long_context_selection: formData.get('long_context_selection')
+                });
             } else {
                 formData.append('long_context_selection', selectedLongContext);
                 
@@ -299,6 +310,7 @@ async function sendMessage(chatId, message) {
     }
 
     try {
+        console.log("Sender forespørsel til:", url);
         const response = await fetch(url, {
             method: 'POST',
             body: formData,
@@ -306,14 +318,16 @@ async function sendMessage(chatId, message) {
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error("Server error:", errorData);
             throw new Error(
                 `Nettverksfeil: ${response.status} ${response.statusText}\n` +
                 JSON.stringify(errorData)
             );
         }
 
-        // Returner JSON-respons
-        return await response.json();
+        const responseData = await response.json();
+        console.log("Server respons:", responseData);
+        return responseData;
     } catch (error) {
         console.error("Feil ved sending av melding:", error);
         throw error;
