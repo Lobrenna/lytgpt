@@ -251,23 +251,19 @@ async function onSendMessage() {
   
   appendMessageToChat('user', renderMarkdown(message));
   
-  const formData = new FormData();
-  formData.append('message', message);
-  
-  // Legg til model hvis valgt
-  if (modelSelector && modelSelector.value) {
-    formData.append('model', modelSelector.value);
-  }
-  
-  // Legg til long_context hvis valgt
-  if (longSelector && longSelector.value) {
-    formData.append('long_context_selection', longSelector.value);
-  }
+  const requestData = {
+    message: message,
+    model: modelSelector ? modelSelector.value : null,
+    long_context_selection: longSelector ? longSelector.value : null
+  };
 
   try {
     const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/messages`, {
       method: 'POST',
-      body: formData
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
     });
     
     if (!response.ok) throw new Error('Network response was not ok');
