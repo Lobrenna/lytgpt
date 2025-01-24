@@ -250,13 +250,21 @@ async function createNewChat() {
  */
 async function sendMessage() {
     const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
-    const modelSelect = document.getElementById('model-selector');
-    const selectedModel = modelSelect.value;
-    const longContextSelect = document.getElementById('long-selector');
-    const selectedLongContext = longContextSelect.value;
+    if (!messageInput) {
+        console.error('Message input element not found');
+        return;
+    }
 
+    const message = messageInput.value.trim();
     if (!message) return;
+
+    // Safely get model selection
+    const modelSelect = document.getElementById('model-selector');
+    const selectedModel = modelSelect ? modelSelect.value : null;
+
+    // Safely get long context selection
+    const longContextSelect = document.getElementById('long-selector');
+    const selectedLongContext = longContextSelect ? longContextSelect.value : null;
 
     messageInput.value = '';
     addMessageToChat('user', message);
@@ -267,10 +275,10 @@ async function sendMessage() {
     if (selectedModel) formData.append('model', selectedModel);
 
     // Determine which endpoint to use based on selection
-    const isRAG = selectedLongContext && selectedLongContext.endsWith('.pkl');
+    const isRAG = selectedLongContext && ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
     const endpoint = isRAG ? '/rag' : '/messages';
 
-    // For RAG, we only need to send the filename
+    // For RAG, we send the selection key
     if (isRAG) {
         formData.append('pkl_file', selectedLongContext);
     } else {
