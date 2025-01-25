@@ -1025,3 +1025,31 @@ async function updateChatSelector(newChatId) {
 
 // Sikrer at removeFileUpload er tilgjengelig globalt
 window.removeFileUpload = removeFileUpload;
+
+/**
+ * onConfirmDelete
+ */
+function onConfirmDelete() {
+  if (!currentChatId) return;
+  
+  if (deleteConfirmation) {
+    deleteConfirmation.style.display = 'none';
+  }
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+  
+  onDeleteChat();
+}
+
+/**
+ * onCancelDelete
+ */
+function onCancelDelete() {
+  if (deleteConfirmation) {
+    deleteConfirmation.style.display = 'none';
+  }
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
