@@ -270,50 +270,83 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
+    console.group('📨 Send Message Details');  // Start en gruppe for bedre organisering
+    
     const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
     let formData = new FormData();
     
-    // Legg til message og logg
+    // Legg til message
     formData.append('message', message);
-    console.log("📝 Melding som sendes:", message);
+    console.log("📝 Melding:", message);
     
-    // Legg til modell og logg
+    // Modell
     if (modelSelector?.value) {
         formData.append('model', modelSelector.value);
-        console.log("🤖 Valgt modell:", modelSelector.value);
+        console.log("🤖 Modell:", modelSelector.value);
     }
 
-    // Legg til long_context og logg
+    // Long context
     if (longSelector?.value) {
         formData.append('long_context_selection', longSelector.value);
-        console.log("📚 Valgt long context:", longSelector.value);
+        console.log("📚 Long context:", longSelector.value);
     }
 
-    // Forbedret filhåndtering og logging
+    // Fil-logging og håndtering
+    console.group('📎 Filer');
     const fileInputs = document.querySelectorAll('.w-file-upload-input');
-    let fileCount = 0;
+    console.log('Fant fileInputs:', fileInputs.length);
     
     fileInputs.forEach((input, index) => {
+        console.log(`FileInput ${index + 1}:`, {
+            files: input.files,
+            hasFiles: input.files?.length > 0,
+            id: input.id,
+            className: input.className
+        });
+        
         if (input.files && input.files.length > 0) {
-            console.log(`📎 Fil ${index + 1}:`, {
-                name: input.files[0].name,
-                size: input.files[0].size,
-                type: input.files[0].type
+            const file = input.files[0];
+            console.log(`Legger til fil ${index + 1}:`, {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastModified: new Date(file.lastModified).toISOString()
             });
-            formData.append('files', input.files[0]);
-            fileCount++;
+            formData.append('files', file);
         }
     });
     
-    console.log(`📤 Totalt antall filer som sendes: ${fileCount}`);
+    // Sjekk også Webflow's egne fil-elementer
+    const webflowUploads = document.querySelectorAll('[data-wf-file-upload-element="input"]');
+    console.log('Fant Webflow uploads:', webflowUploads.length);
+    
+    webflowUploads.forEach((upload, index) => {
+        console.log(`Webflow Upload ${index + 1}:`, {
+            element: upload,
+            files: upload.files,
+            hasFiles: upload.files?.length > 0
+        });
+    });
+    
+    console.groupEnd(); // Avslutt fil-gruppe
 
-    // Logg hele FormData innholdet
-    console.log("🔍 FormData innhold:");
-    for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
+    // Logg FormData innhold
+    console.group('🔍 FormData Innhold');
+    for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+            console.log(`${key}:`, {
+                name: value.name,
+                size: value.size,
+                type: value.type
+            });
+        } else {
+            console.log(`${key}:`, value);
+        }
     }
+    console.groupEnd();
 
     try {
+        console.log(`🌐 Sender request til: ${url}`);
         const response = await fetch(url, {
             method: 'POST',
             body: formData
@@ -326,9 +359,11 @@ async function sendMessage(chatId, message) {
 
         const data = await response.json();
         console.log("✅ Server respons:", data);
+        console.groupEnd(); // Avslutt hovedgruppe
         return data;
     } catch (error) {
         console.error("❌ Feil ved sending av melding:", error);
+        console.groupEnd(); // Avslutt hovedgruppe ved feil
         throw error;
     }
 }
