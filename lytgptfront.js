@@ -270,55 +270,53 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-  // Construct base URL for regular chat messages
   const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
   let formData = new FormData();
   
-  // Add the message
+  // Legg kun til de nødvendige feltene
   formData.append('message', message);
   
-  // Add model if selected
-  if (modelSelector && modelSelector.value) {
+  // Legg til modell kun hvis den er valgt
+  if (modelSelector?.value) {
     formData.append('model', modelSelector.value);
   }
 
-  // Add long_context_selection if selected
-  if (longSelector && longSelector.value) {
+  // Legg til long_context kun hvis det er valgt
+  if (longSelector?.value) {
     formData.append('long_context_selection', longSelector.value);
-    console.log("Valgt long context:", longSelector.value);
   }
 
-  // Check for file uploads
+  // Legg til filer kun hvis de faktisk eksisterer
   const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  fileInputs.forEach((input, index) => {
-    if (input.files && input.files[0]) {
-      formData.append(`files`, input.files[0]);
+  let hasFiles = false;
+  
+  fileInputs.forEach(input => {
+    if (input.files?.[0]) {
+      formData.append('files', input.files[0]);
+      hasFiles = true;
     }
-    // Add backend-file if it exists
     const backendFile = input.getAttribute('data-backend-file');
     if (backendFile) {
       formData.append('backend_files', backendFile);
+      hasFiles = true;
     }
   });
 
-  console.log("Sender forespørsel til:", url);
+  console.log("Sender melding til backend...");
   
   try {
     const response = await fetch(url, {
       method: 'POST',
-      body: formData,
+      body: formData
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(
-        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-        JSON.stringify(errorData)
-      );
+      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
     }
 
-    console.log("Server respons:", response);
     const data = await response.json();
+    console.log("Mottatt data fra server:", data);
     return data;
   } catch (error) {
     console.error("Feil ved sending av melding:", error);
