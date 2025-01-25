@@ -1,10 +1,5 @@
-// Umiddelbar logging når scriptet lastes
-(function() {
-    console.clear(); // Tøm konsollen
-    console.log('%c🚀 LYT GPT Frontend v8.0.4 Loading...', 'font-size: 20px; font-weight: bold; color: #4CAF50;');
-})();
-
-console.log('🚀 LYT GPT Frontend loading... v8.0.3');
+// Fjern dupliserte initialiseringslogger og samle dem i én
+console.log('%c🚀 LYT GPT Frontend v8.0.5 Loading...', 'font-size: 20px; font-weight: bold; color: #4CAF50;');
 
 // URL til FastAPI-backenden (oppdater hvis nødvendig)
 const API_BASE_URL = "http://localhost:8000";
@@ -370,53 +365,32 @@ async function sendMessage(chatId, message) {
     }
 }
 
-/**
- * onNewChat
- */
-async function onNewChat() {
-  try {
-    showSpinner(newChatButton, 'Oppretter ny chat...');
-    const chatId = await createNewChat();
-    currentChatId = chatId;
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
-      await loadChat(currentChatId);
+// Definer onSendMessage før setupEventListeners
+async function onSendMessage() {
+    if (!chatInput || !chatInput.value.trim()) return;
+    
+    try {
+        const message = chatInput.value.trim();
+        chatInput.value = '';
+        
+        if (!currentChatId) {
+            currentChatId = await createNewChat();
+        }
+        
+        appendMessageToChat('user', renderMarkdown(message));
+        
+        const data = await sendMessage(currentChatId, message);
+        if (data.response) {
+            appendMessageToChat('assistant', renderMarkdown(data.response));
+        }
+        
+        // Oppdater UI med kontekstlengde og token-estimater
+        updateUIElements(data);
+        
+    } catch (error) {
+        console.error('Feil ved sending av melding:', error);
+        appendMessageToChat('error', `Feil ved sending av melding: ${error.message}`);
     }
-    if (chatMessages) {
-      chatMessages.innerHTML = '';
-    }
-
-    // Nullstill inputfelter mm.
-    const fileUploadDefault = document.querySelector('.w-file-upload-default');
-    if (fileUploadDefault) {
-      fileUploadDefault.style.display = 'block';
-    }
-    const fileUploadSuccess = document.querySelector('.w-file-upload-success');
-    if (fileUploadSuccess) {
-      fileUploadSuccess.style.display = 'none';
-    }
-    const fileInput = document.querySelector('.w-file-upload-input');
-    if (fileInput) {
-      fileInput.value = '';
-      fileInput.removeAttribute('data-backend-file');
-    }
-    const extraFileUpload = document.querySelector('.w-file-upload:nth-child(2)');
-    if (extraFileUpload) {
-      extraFileUpload.remove();
-    }
-    if (urlInput) {
-      urlInput.value = '';
-    }
-
-    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat opprettet med ID:", currentChatId);
-  } catch (error) {
-    console.error("Feil ved opprettelse av ny chat:", error);
-    alert("Feil ved opprettelse av ny chat.");
-  } finally {
-    hideSpinner(newChatButton);
-  }
 }
 
 function initializeModelSelector() {
@@ -715,40 +689,40 @@ let isInitialized = false;
  * DOMContentLoaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log("Starter initialisering...");
-    
-    // 1) Hent modeller og initialiser model selector
-    await fetchModels();
-    initializeModelSelector();
-    console.log("Modeller hentet og initialisert");
+    try {
+        console.log("Starter initialisering...");
+        
+        // 1) Hent modeller og initialiser model selector
+        await fetchModels();
+        initializeModelSelector();
+        console.log("Modeller hentet og initialisert");
 
-    // 2) Hent long-context valg
-    await populateLongSelector();
-    console.log("Long-context valg hentet");
+        // 2) Hent long-context valg
+        await populateLongSelector();
+        console.log("Long-context valg hentet");
 
-    // 3) Hent oversikt over chats
-    await fetchChats();
-    console.log("Chats hentet");
+        // 3) Hent oversikt over chats
+        await fetchChats();
+        console.log("Chats hentet");
 
-    // 4) Sett opp event listeners
-    setupEventListeners();
-    console.log("Event listeners satt opp");
+        // 4) Sett opp event listeners
+        setupEventListeners();
+        console.log("Event listeners satt opp");
 
-    // 5) Opprett ny chat om vi ikke har en
-    if (!currentChatId) {
-      try {
-        currentChatId = await createNewChat();
-        console.log("Ny chat opprettet:", currentChatId);
-      } catch (error) {
-        console.error("Feil ved opprettelse av ny chat:", error);
-      }
+        // 5) Opprett ny chat om vi ikke har en
+        if (!currentChatId) {
+            try {
+                currentChatId = await createNewChat();
+                console.log("Ny chat opprettet:", currentChatId);
+            } catch (error) {
+                console.error("Feil ved opprettelse av ny chat:", error);
+            }
+        }
+
+        console.log("Initialisering fullført");
+    } catch (error) {
+        console.error("Feil under initialisering:", error);
     }
-
-    console.log("Initialisering fullført");
-  } catch (error) {
-    console.error("Feil under initialisering:", error);
-  }
 });
 
 /**
@@ -883,69 +857,67 @@ function isRagSupportedModel(model) {
     return ragSupportedModels.includes(model);
 }
 
-/**
- * setupEventListeners
- */
+// Oppdater setupEventListeners
 function setupEventListeners() {
-  if (modelSelector) {
-    modelSelector.addEventListener('change', onModelChange);
-  }
-  if (chatSelector) {
-    chatSelector.addEventListener('change', onChatChange);
-  }
-  if (sendButton) {
-    sendButton.addEventListener('click', onSendMessage);
-    sendButton.setAttribute('type', 'button');
-  }
-  if (uploadFilesButton) {
-    uploadFilesButton.addEventListener('click', onUploadFiles);
-  }
-  if (setUrlButton) {
-    setUrlButton.addEventListener('click', onSetUrl);
-  }
-  if (newChatButton) {
-    newChatButton.addEventListener('click', onNewChat);
-  }
-  if (deleteChatButton) {
-    deleteChatButton.addEventListener('click', onDeleteChat);
-  }
-  if (deleteConfirmYes) {
-    deleteConfirmYes.addEventListener('click', onConfirmDelete);
-  }
-  if (deleteConfirmNo) {
-    deleteConfirmNo.addEventListener('click', onCancelDelete);
-  }
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        onSendMessage();
-      }
-    });
-  }
-  if (urlInput) {
-    urlInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        event.stopPropagation();
-        onSetUrl();
-      }
-    });
-  }
-  const urlForm = document.getElementById('email-form');
-  if (urlForm) {
-    urlForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      return false;
-    });
-  }
+    if (modelSelector) {
+        modelSelector.addEventListener('change', onModelChange);
+    }
+    if (chatSelector) {
+        chatSelector.addEventListener('change', onChatChange);
+    }
+    if (sendButton) {
+        sendButton.addEventListener('click', onSendMessage);
+        sendButton.setAttribute('type', 'button');
+    }
+    if (uploadFilesButton) {
+        uploadFilesButton.addEventListener('click', onUploadFiles);
+    }
+    if (setUrlButton) {
+        setUrlButton.addEventListener('click', onSetUrl);
+    }
+    if (newChatButton) {
+        newChatButton.addEventListener('click', onNewChat);
+    }
+    if (deleteChatButton) {
+        deleteChatButton.addEventListener('click', onDeleteChat);
+    }
+    if (deleteConfirmYes) {
+        deleteConfirmYes.addEventListener('click', onConfirmDelete);
+    }
+    if (deleteConfirmNo) {
+        deleteConfirmNo.addEventListener('click', onCancelDelete);
+    }
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                onSendMessage();
+            }
+        });
+    }
+    if (urlInput) {
+        urlInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                onSetUrl();
+            }
+        });
+    }
+    const urlForm = document.getElementById('email-form');
+    if (urlForm) {
+        urlForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+        });
+    }
 
-  // Initialiser file inputs
-  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-  initialFileInputs.forEach(input => {
-    input.addEventListener('change', handleFileSelection);
-  });
+    // Initialiser file inputs
+    const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+    initialFileInputs.forEach(input => {
+        input.addEventListener('change', handleFileSelection);
+    });
 }
 
 /**
