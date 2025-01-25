@@ -270,58 +270,67 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-  const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
-  let formData = new FormData();
-  
-  // Legg kun til de nødvendige feltene
-  formData.append('message', message);
-  
-  // Legg til modell kun hvis den er valgt
-  if (modelSelector?.value) {
-    formData.append('model', modelSelector.value);
-  }
-
-  // Legg til long_context kun hvis det er valgt
-  if (longSelector?.value) {
-    formData.append('long_context_selection', longSelector.value);
-  }
-
-  // Legg til filer kun hvis de faktisk eksisterer
-  const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  let hasFiles = false;
-  
-  fileInputs.forEach(input => {
-    if (input.files?.[0]) {
-      formData.append('files', input.files[0]);
-      hasFiles = true;
+    const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
+    let formData = new FormData();
+    
+    // Legg til message og logg
+    formData.append('message', message);
+    console.log("📝 Melding som sendes:", message);
+    
+    // Legg til modell og logg
+    if (modelSelector?.value) {
+        formData.append('model', modelSelector.value);
+        console.log("🤖 Valgt modell:", modelSelector.value);
     }
-    const backendFile = input.getAttribute('data-backend-file');
-    if (backendFile) {
-      formData.append('backend_files', backendFile);
-      hasFiles = true;
-    }
-  });
 
-  console.log("Sender melding til backend...");
-  
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
+    // Legg til long_context og logg
+    if (longSelector?.value) {
+        formData.append('long_context_selection', longSelector.value);
+        console.log("📚 Valgt long context:", longSelector.value);
+    }
+
+    // Forbedret filhåndtering og logging
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    let fileCount = 0;
+    
+    fileInputs.forEach((input, index) => {
+        if (input.files && input.files.length > 0) {
+            console.log(`📎 Fil ${index + 1}:`, {
+                name: input.files[0].name,
+                size: input.files[0].size,
+                type: input.files[0].type
+            });
+            formData.append('files', input.files[0]);
+            fileCount++;
+        }
     });
+    
+    console.log(`📤 Totalt antall filer som sendes: ${fileCount}`);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+    // Logg hele FormData innholdet
+    console.log("🔍 FormData innhold:");
+    for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
     }
 
-    const data = await response.json();
-    console.log("Mottatt data fra server:", data);
-    return data;
-  } catch (error) {
-    console.error("Feil ved sending av melding:", error);
-    throw error;
-  }
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        console.log("✅ Server respons:", data);
+        return data;
+    } catch (error) {
+        console.error("❌ Feil ved sending av melding:", error);
+        throw error;
+    }
 }
 
 /**
