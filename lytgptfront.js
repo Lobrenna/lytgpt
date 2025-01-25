@@ -1,3 +1,9 @@
+// Umiddelbar logging når scriptet lastes
+(function() {
+    console.clear(); // Tøm konsollen
+    console.log('%c🚀 LYT GPT Frontend v8.0.4 Loading...', 'font-size: 20px; font-weight: bold; color: #4CAF50;');
+})();
+
 console.log('🚀 LYT GPT Frontend loading... v8.0.3');
 
 // URL til FastAPI-backenden (oppdater hvis nødvendig)
@@ -270,80 +276,69 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-    console.group('📨 Send Message Details');
+    console.group('%c📨 Send Message Operation', 'font-size: 16px; color: #2196F3;');
     
     const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
     let formData = new FormData();
     
     // Debug logging
-    console.log('🔍 DEBUG: Starting sendMessage');
-    console.log('📁 Checking file inputs...');
+    console.log('%c🔍 Starting sendMessage function', 'color: #9C27B0');
     
-    // Legg til message
-    formData.append('message', message);
-    console.log("📝 Melding:", message);
-    
-    // Modell
-    if (modelSelector?.value) {
-        formData.append('model', modelSelector.value);
-        console.log("🤖 Modell:", modelSelector.value);
-    }
-
-    // Long context
-    if (longSelector?.value) {
-        formData.append('long_context_selection', longSelector.value);
-        console.log("📚 Long context:", longSelector.value);
-    }
-
     // Fil-logging og håndtering
-    console.group('📎 Fil-elementer i DOM');
+    console.group('%c📎 File Input Detection', 'color: #FF9800');
     
-    // 1. Standard file input
+    // 1. Standard file inputs
     const standardFileInputs = document.querySelectorAll('input[type="file"]');
-    console.log(`Fant ${standardFileInputs.length} standard file inputs:`, standardFileInputs);
+    console.log(`Found ${standardFileInputs.length} standard file inputs:`, standardFileInputs);
 
-    // 2. Webflow file upload
+    // 2. Webflow specific
     const webflowFileInputs = document.querySelectorAll('.w-file-upload-input');
-    console.log(`Fant ${webflowFileInputs.length} Webflow file inputs:`, webflowFileInputs);
+    console.log(`Found ${webflowFileInputs.length} Webflow file inputs:`, webflowFileInputs);
 
-    // 3. Webflow file upload wrapper
+    // 3. Additional Webflow elements
     const webflowUploads = document.querySelectorAll('[data-wf-file-upload-element="input"]');
-    console.log(`Fant ${webflowUploads.length} Webflow upload wrappers:`, webflowUploads);
+    console.log(`Found ${webflowUploads.length} Webflow upload elements:`, webflowUploads);
 
-    // Sjekk alle mulige fil-inputs
+    // Combine all file inputs
     const allFileInputs = [...standardFileInputs, ...webflowFileInputs, ...webflowUploads];
     
+    if (allFileInputs.length === 0) {
+        console.warn('⚠️ No file input elements found on page!');
+    }
+    
     allFileInputs.forEach((input, index) => {
-        console.group(`Fil-input ${index + 1}`);
-        console.log('Element:', input);
-        console.log('Type:', input.type);
-        console.log('ID:', input.id);
-        console.log('Class:', input.className);
-        console.log('Files:', input.files);
-        console.log('Has files:', input.files?.length > 0);
+        console.group(`📄 File Input ${index + 1} Details`);
+        console.table({
+            type: input.type,
+            id: input.id,
+            class: input.className,
+            hasFiles: input.files?.length > 0,
+            filesCount: input.files?.length || 0
+        });
         
         if (input.files?.length > 0) {
             const file = input.files[0];
-            console.log('Fil-detaljer:', {
+            console.table({
                 name: file.name,
-                size: file.size,
+                size: `${(file.size / 1024).toFixed(2)} KB`,
                 type: file.type,
-                lastModified: new Date(file.lastModified).toISOString()
+                lastModified: new Date(file.lastModified).toLocaleString()
             });
             formData.append('files', file);
+            console.log('✅ File added to FormData');
         }
         console.groupEnd();
     });
     
-    console.groupEnd(); // Avslutt fil-gruppe
+    console.groupEnd(); // End file input detection
 
-    // Logg FormData innhold
-    console.group('🔍 FormData Innhold');
+    // FormData content logging
+    console.group('%c🔍 FormData Content', 'color: #E91E63');
     for (let [key, value] of formData.entries()) {
         if (value instanceof File) {
             console.log(`${key}:`, {
                 name: value.name,
-                size: value.size,
+                size: `${(value.size / 1024).toFixed(2)} KB`,
                 type: value.type
             });
         } else {
@@ -352,25 +347,25 @@ async function sendMessage(chatId, message) {
     }
     console.groupEnd();
 
+    // Rest of your existing code...
     try {
-        console.log(`🌐 Sender request til: ${url}`);
+        console.log(`🌐 Sending request to: ${url}`);
         const response = await fetch(url, {
             method: 'POST',
             body: formData
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Nettverksfeil: ${response.status} ${response.statusText}\n${JSON.stringify(errorData)}`);
+            throw new Error(`Network error: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("✅ Server respons:", data);
-        console.groupEnd(); // Avslutt hovedgruppe
+        console.log("✅ Server response:", data);
+        console.groupEnd(); // End send message operation
         return data;
     } catch (error) {
-        console.error("❌ Feil ved sending av melding:", error);
-        console.groupEnd(); // Avslutt hovedgruppe ved feil
+        console.error("❌ Error:", error);
+        console.groupEnd(); // End send message operation
         throw error;
     }
 }
