@@ -270,54 +270,31 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-  let url;
+  // Construct base URL for regular chat messages
+  const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
   let formData = new FormData();
   
-  // Sjekk om noen av filene er .pkl (RAG)
-  const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  let hasRagFile = false;
-  
-  fileInputs.forEach(input => {
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      if (file.name.toLowerCase().endsWith('.pkl')) {
-        hasRagFile = true;
-      }
-    }
-    // Sjekk også backend-file attributt for .pkl
-    const backendFile = input.getAttribute('data-backend-file');
-    if (backendFile && backendFile.toLowerCase().endsWith('.pkl')) {
-      hasRagFile = true;
-    }
-  });
-
-  // Velg riktig endepunkt
-  url = hasRagFile 
-    ? `${API_BASE_URL}/rag/${encodeURIComponent(chatId)}/messages`
-    : `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
-  
-  console.log("Bruker endepunkt:", url);
-  
-  // Legg til meldingen
+  // Add the message
   formData.append('message', message);
   
-  // Legg til modell hvis valgt
+  // Add model if selected
   if (modelSelector && modelSelector.value) {
     formData.append('model', modelSelector.value);
   }
 
-  // Legg til long_context_selection hvis valgt
+  // Add long_context_selection if selected
   if (longSelector && longSelector.value) {
     formData.append('long_context_selection', longSelector.value);
     console.log("Valgt long context:", longSelector.value);
   }
 
-  // Håndter filopplasting
+  // Check for file uploads
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
   fileInputs.forEach((input, index) => {
     if (input.files && input.files[0]) {
       formData.append(`files`, input.files[0]);
     }
-    // Legg til backend-file hvis det finnes
+    // Add backend-file if it exists
     const backendFile = input.getAttribute('data-backend-file');
     if (backendFile) {
       formData.append('backend_files', backendFile);
@@ -342,12 +319,6 @@ async function sendMessage(chatId, message) {
 
     console.log("Server respons:", response);
     const data = await response.json();
-    
-    // Håndter spesielle RAG-responser
-    if (hasRagFile && data.sources) {
-      appendMessageToChat('sources', `Kilder:\n${data.sources.join('\n')}`);
-    }
-    
     return data;
   } catch (error) {
     console.error("Feil ved sending av melding:", error);
