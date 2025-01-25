@@ -1,4 +1,4 @@
-console.log('JavaScript fil lastet!');
+console.log('🚀 LYT GPT Frontend loading... v8.0.3');
 
 // URL til FastAPI-backenden (oppdater hvis nødvendig)
 const API_BASE_URL = "http://localhost:8000";
@@ -274,6 +274,10 @@ async function sendMessage(chatId, message) {
     
     const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
     let formData = new FormData();
+    
+    // Debug logging
+    console.log('🔍 DEBUG: Starting sendMessage');
+    console.log('📁 Checking file inputs...');
     
     // Legg til message
     formData.append('message', message);
