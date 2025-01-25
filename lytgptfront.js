@@ -255,7 +255,7 @@ async function sendMessage(chatId, message) {
     // Klargjør endepunkt-URL
     const encodedChatId = encodeURIComponent(chatId);
     
-    // Hent valgt long-context (fra <select id="long-selector">)
+    // Hent valgt long-context
     const longSelector = document.getElementById('long-selector');
     let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
     
@@ -264,56 +264,41 @@ async function sendMessage(chatId, message) {
     formData.append('message', message);
     formData.append('model', selectedModel);
 
-    if (longSelector) {
+    // Håndter filopplastinger
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    let hasFiles = false;
+
+    fileInputs.forEach((input, index) => {
+        // Sjekk for backend-filer
+        const backendFile = input.getAttribute('data-backend-file');
+        if (backendFile) {
+            formData.append('backend_files', backendFile);
+            hasFiles = true;
+            console.log(`Adding backend file: ${backendFile}`);
+        }
+        // Sjekk for lokale filer
+        if (input.files && input.files[0]) {
+            formData.append('files', input.files[0]);
+            hasFiles = true;
+            console.log(`Adding local file: ${input.files[0].name}`);
+        }
+    });
+
+    if (longSelector && longSelector.value) {
         const selectedLongContext = longSelector.value;
         console.log("sendMessage: Selected long context:", selectedLongContext);
 
-        if (selectedLongContext) {
-            // Sjekk om dette er en RAG-forespørsel
-            const isRAG = ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
-            console.log("sendMessage: Is RAG request?", isRAG);
-
-            if (isRAG) {
-                url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-                formData.append('long_context_selection', selectedLongContext);
-                console.log("sendMessage: Using RAG URL:", url);
-                console.log("sendMessage: FormData for RAG:", {
-                    message: formData.get('message'),
-                    model: formData.get('model'),
-                    long_context_selection: formData.get('long_context_selection')
-                });
-            } else {
-                formData.append('long_context_selection', selectedLongContext);
-                
-                // Hent backend-filer og manuelle filer
-                const fileInputs = document.querySelectorAll('.w-file-upload-input');
-                const backendFiles = [];
-                const manualFiles = [];
-
-                fileInputs.forEach(input => {
-                    const backendFile = input.getAttribute('data-backend-file');
-                    if (backendFile) {
-                        backendFiles.push(backendFile);
-                    }
-                    if (input.files && input.files[0]) {
-                        manualFiles.push(input.files[0]);
-                    }
-                });
-
-                console.log("sendMessage: Backend files:", backendFiles);
-                console.log("sendMessage: Manual files:", manualFiles.map(f => f.name));
-
-                // Legg til 'backend_files' i formData
-                backendFiles.forEach(backendFile => {
-                    formData.append('backend_files', backendFile);
-                });
-
-                // Legg til lokale filer i formData
-                manualFiles.forEach(file => {
-                    formData.append('files', file);
-                });
-            }
+        if (['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext)) {
+            url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+            formData.append('long_context_selection', selectedLongContext);
+        } else {
+            formData.append('long_context_selection', selectedLongContext);
         }
+    }
+
+    console.log("sendMessage: FormData contents:");
+    for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
     }
 
     try {
