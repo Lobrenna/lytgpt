@@ -181,6 +181,8 @@ function appendMessageToChat(role, htmlContent) {
     top: chatMessages.scrollHeight,
     behavior: 'smooth'
   });
+  
+  return msgEl;
 }
 
 /**
@@ -189,21 +191,35 @@ function appendMessageToChat(role, htmlContent) {
 function displayChatMessages(messages) {
   if (!chatMessages) return;
   chatMessages.innerHTML = '';
+  
   messages.forEach(message => {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${message.role}`;
     
-    // Håndter forskjellige meldingstyper
     if (message.role === 'sources') {
-      // For kildehenvisninger, bruk pre-formatert tekst
       messageDiv.innerHTML = `<pre>${message.content}</pre>`;
+    } else if (message.role === 'system') {
+      messageDiv.innerHTML = `<div class="system-message">${renderMarkdown(message.content)}</div>`;
+    } else if (message.sources) {
+      // Vis først meldingen
+      messageDiv.innerHTML = renderMarkdown(message.content);
+      // Legg til kilder hvis de finnes
+      const sourcesDiv = document.createElement('div');
+      sourcesDiv.className = 'chat-message sources';
+      sourcesDiv.innerHTML = `<pre>Kilder:\n${message.sources.join('\n')}</pre>`;
+      chatMessages.appendChild(messageDiv);
+      chatMessages.appendChild(sourcesDiv);
+      return;
+    } else if (message.error) {
+      messageDiv.className = `chat-message error`;
+      messageDiv.innerHTML = `<div class="error-message">${message.error}</div>`;
     } else {
-      // For vanlige meldinger, bruk markdown-rendering
       messageDiv.innerHTML = renderMarkdown(message.content);
     }
     
     chatMessages.appendChild(messageDiv);
   });
+  
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -216,199 +232,127 @@ function clearChatMessages() {
 }
 
 /**
- * createNewChat
+ * Konstanter som matcher backend
+ */
+const MODEL_TOKEN_LIMITS = {
+    "gpt-4o": 128000,
+    "gpt-4o-mini": 128000,
+    "gemini-pro": 128000,
+    "gemini-1.5-pro": 2097152,
+    // ... legg til flere modeller etter behov
+};
+
+/**
+ * createNewChat - Oppdatert for å håndtere nye modeller
  */
 async function createNewChat() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: selectedModel })
-    });
-    
-    if (!response.ok) {
-      console.error("createNewChat: Feil respons:", response.status, response.statusText);
-      throw new Error('Feil ved opprettelse av chat');
-    }
-    const data = await response.json();
-    if (data.title) {
-      return data.title;
-    } else if (data.chat_id) {
-      return data.chat_id;
-    } else {
-      console.error("createNewChat: Mangler chat_id i responsen:", data);
-      throw new Error('Mangler chat_id i respons fra server');
-    }
-  } catch (error) {
-    console.error('createNewChat: Feil:', error);
-    throw error;
-  }
-}
-
-async function sendMessage(chatId, message) {
-    if (!chatId) {
-        throw new Error('Chat ID er påkrevd');
-    }
-
-    // Klargjør endepunkt-URL
-    const encodedChatId = encodeURIComponent(chatId);
-    
-    // Hent valgt long-context (fra <select id="long-selector">)
-    const longSelector = document.getElementById('long-selector');
-    let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-    
-    // Opprett FormData
-    const formData = new FormData();
-    formData.append('message', message);
-    formData.append('model', selectedModel);
-
-    if (longSelector) {
-        const selectedLongContext = longSelector.value;
-        console.log("Valgt long context:", selectedLongContext);
-
-        if (selectedLongContext) {
-            // Sjekk om dette er en RAG-forespørsel
-            const isRAG = ['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext);
-            console.log("Er dette en RAG-forespørsel?", isRAG);
-
-            if (isRAG) {
-                url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-                formData.append('long_context_selection', selectedLongContext);  // Endret fra pkl_file til long_context_selection
-                console.log("RAG URL:", url);
-                console.log("FormData for RAG:", {
-                    message: formData.get('message'),
-                    model: formData.get('model'),
-                    long_context_selection: formData.get('long_context_selection')
-                });
-            } else {
-                formData.append('long_context_selection', selectedLongContext);
-                
-                // Hent backend-filer og manuelle filer
-                const fileInputs = document.querySelectorAll('.w-file-upload-input');
-                const backendFiles = [];
-                const manualFiles = [];
-
-                fileInputs.forEach(input => {
-                    const backendFile = input.getAttribute('data-backend-file');
-                    if (backendFile) {
-                        backendFiles.push(backendFile);
-                    }
-                    if (input.files && input.files[0]) {
-                        manualFiles.push(input.files[0]);
-                    }
-                });
-
-                // Legg til 'backend_files' i formData
-                backendFiles.forEach(backendFile => {
-                    formData.append('backend_files', backendFile);
-                });
-
-                // Legg til lokale filer i formData
-                manualFiles.forEach(file => {
-                    formData.append('files', file);
-                });
-            }
-        }
-    }
-
     try {
-        console.log("Sender forespørsel til:", url);
-        const response = await fetch(url, {
+        const model = modelSelector ? modelSelector.value : null;
+        const response = await fetch(`${API_BASE_URL}/chats`, {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                model: model,
+                system_prompt: null  // La backend bruke default
+            })
         });
-
+        
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Server error:", errorData);
-            throw new Error(
-                `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-                JSON.stringify(errorData)
-            );
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const responseData = await response.json();
-        console.log("Server respons:", responseData);
-        return responseData;
+        
+        const data = await response.json();
+        return data.chat_id || data.title;
     } catch (error) {
-        console.error("Feil ved sending av melding:", error);
+        console.error('Feil ved opprettelse av chat:', error);
         throw error;
     }
 }
 
-// Separate function for updating UI elements
-function updateUIElements(data) {
-    if (!data) return;
+async function sendMessage(chatId, message) {
+  let url;
+  let formData = new FormData();
+  
+  // Sjekk om noen av filene er .pkl (RAG)
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  let hasRagFile = false;
+  
+  fileInputs.forEach(input => {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      if (file.name.toLowerCase().endsWith('.pkl')) {
+        hasRagFile = true;
+      }
+    }
+    // Sjekk også backend-file attributt for .pkl
+    const backendFile = input.getAttribute('data-backend-file');
+    if (backendFile && backendFile.toLowerCase().endsWith('.pkl')) {
+      hasRagFile = true;
+    }
+  });
+
+  // Velg riktig endepunkt
+  url = hasRagFile 
+    ? `${API_BASE_URL}/rag/${encodeURIComponent(chatId)}/messages`
+    : `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
+  
+  console.log("Bruker endepunkt:", url);
+  
+  // Legg til meldingen
+  formData.append('message', message);
+  
+  // Legg til modell hvis valgt
+  if (modelSelector && modelSelector.value) {
+    formData.append('model', modelSelector.value);
+  }
+
+  // Legg til long_context_selection hvis valgt
+  if (longSelector && longSelector.value) {
+    formData.append('long_context_selection', longSelector.value);
+    console.log("Valgt long context:", longSelector.value);
+  }
+
+  // Håndter filopplasting
+  fileInputs.forEach((input, index) => {
+    if (input.files && input.files[0]) {
+      formData.append(`files`, input.files[0]);
+    }
+    // Legg til backend-file hvis det finnes
+    const backendFile = input.getAttribute('data-backend-file');
+    if (backendFile) {
+      formData.append('backend_files', backendFile);
+    }
+  });
+
+  console.log("Sender forespørsel til:", url);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+        JSON.stringify(errorData)
+      );
+    }
+
+    console.log("Server respons:", response);
+    const data = await response.json();
     
-    try {
-        if (data.selected_model && typeof updateModelInfo === 'function') {
-            updateModelInfo(data.selected_model);
-        }
-        if (data.context_length && typeof updateContextLength === 'function') {
-            updateContextLength(data.context_length);
-        }
-        if (data.estimated_tokens && typeof updateEstimatedTokens === 'function') {
-            updateEstimatedTokens(data.estimated_tokens);
-        }
-    } catch (error) {
-        console.error('Error updating UI elements:', error);
+    // Håndter spesielle RAG-responser
+    if (hasRagFile && data.sources) {
+      appendMessageToChat('sources', `Kilder:\n${data.sources.join('\n')}`);
     }
-}
-
-// Update the onSendMessage function
-async function onSendMessage() {
-    if (!chatInput || !chatInput.value.trim()) return;
-
-    const message = chatInput.value.trim();
-
-    // 1. Vis brukerens melding i chatvinduet
-    appendMessageToChat('user', renderMarkdown(message));
-    chatInput.value = '';
-
-    // Midlertidig melding
-    const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-    showSpinner(sendButton, 'Sender...');
-
-    try {
-        if (!currentChatId) {
-            throw new Error('Ingen aktiv chat');
-        }
-
-        let data;
-        console.log("Sender melding til backend...");
-
-        data = await sendMessage(currentChatId, message);
-        console.log("Mottatt data fra server:", data);
-
-        // Fjern "Genererer svar..."
-        if (generatingMessage && generatingMessage.parentNode) {
-            generatingMessage.parentNode.removeChild(generatingMessage);
-        }
-
-        // Vis litt info
-        if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-            const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-            appendMessageToChat('system', modelInfo);
-        }
-
-        appendMessageToChat('assistant', renderMarkdown(data.response));
-
-        // Oppdater chat-id hvis backend returnerer en ny
-        if (data.new_chat_id) {
-            currentChatId = data.new_chat_id;
-            console.log("Oppdatert currentChatId til:", currentChatId);
-            await updateChatSelector(currentChatId);
-        }
-
-    } catch (error) {
-        console.error('Feil ved sending av melding:', error);
-        if (generatingMessage && generatingMessage.parentNode) {
-            generatingMessage.parentNode.removeChild(generatingMessage);
-        }
-        appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
-    } finally {
-        hideSpinner(sendButton);
-    }
+    
+    return data;
+  } catch (error) {
+    console.error("Feil ved sending av melding:", error);
+    throw error;
+  }
 }
 
 /**
@@ -673,52 +617,51 @@ function removeFileUpload(fileUploadDiv, isBackend = false) {
     uploadSuccess.classList.add('w-hidden');
     uploadDefault.classList.remove('w-hidden');
   }
+
+  // Fjern div hvis det er en ekstra opplastingsdiv
+  const allFileUploads = document.querySelectorAll('.w-file-upload');
+  if (allFileUploads.length > 1) {
+    fileUploadDiv.remove();
+  }
 }
 
+/**
+ * onSetUrl - Oppdatert for å håndtere URL-scraping
+ */
 async function onSetUrl() {
-  if (isScraping) {
-    console.warn('Scraping already in progress.');
-    return;
-  }
-  showSpinner(setUrlButton, 'Scraper...');
-  if (!currentChatId) {
+    if (!urlInput || !urlInput.value.trim()) {
+        alert('Vennligst skriv inn en URL');
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    showSpinner(setUrlButton, 'Scraper...');
+
     try {
-      currentChatId = await createNewChat();
+        if (!currentChatId) {
+            currentChatId = await createNewChat();
+        }
+
+        const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/context/url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        appendMessageToChat('system', `URL scrapet: ${url}`);
+        urlInput.value = '';
+
     } catch (error) {
-      console.error("Feil ved opprettelse av ny chat:", error);
-      alert("Feil ved opprettelse av ny chat.");
-      hideSpinner(setUrlButton);
-      return;
+        console.error('Feil ved scraping av URL:', error);
+        appendMessageToChat('error', `Feil ved scraping av URL: ${error.message}`);
+    } finally {
+        hideSpinner(setUrlButton);
     }
-  }
-
-  const url = urlInput.value.trim();
-  if (!url) {
-    alert("Vennligst skriv inn en URL.");
-    hideSpinner(setUrlButton);
-    return;
-  }
-
-  try {
-    const resp = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/context/url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url })
-    });
-
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    addBackendFileUpload(data.context_file);
-    urlInput.value = '';
-  } catch (error) {
-    console.error("Feil ved innstilling av URL:", error);
-    alert("Feil ved innstilling av URL.");
-  } finally {
-    hideSpinner(setUrlButton);
-  }
 }
 
 /**
@@ -760,23 +703,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log("Starter initialisering...");
     
-    // 1) Hent modeller
+    // 1) Hent modeller og initialiser model selector
     await fetchModels();
-    console.log("Modeller hentet");
+    initializeModelSelector();
+    console.log("Modeller hentet og initialisert");
 
     // 2) Hent long-context valg
     await populateLongSelector();
     console.log("Long-context valg hentet");
-
-    // Opprett ny chat om vi ikke har en
-    if (!currentChatId) {
-      try {
-        currentChatId = await createNewChat();
-        console.log("Ny chat opprettet:", currentChatId);
-      } catch (error) {
-        console.error("Feil ved opprettelse av ny chat:", error);
-      }
-    }
 
     // 3) Hent oversikt over chats
     await fetchChats();
@@ -786,14 +720,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
     console.log("Event listeners satt opp");
 
-    if (chatInput) {
-      chatInput.style.color = "#000";
+    // 5) Opprett ny chat om vi ikke har en
+    if (!currentChatId) {
+      try {
+        currentChatId = await createNewChat();
+        console.log("Ny chat opprettet:", currentChatId);
+      } catch (error) {
+        console.error("Feil ved opprettelse av ny chat:", error);
+      }
     }
-
-    const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-    initialFileInputs.forEach(input => {
-      input.addEventListener('change', handleFileSelection);
-    });
 
     console.log("Initialisering fullført");
   } catch (error) {
@@ -802,165 +737,135 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * fetchChats
+ * fetchChats - Oppdatert for å håndtere alle chat-data
  */
-async function fetchChats(autoLoad = true) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) throw new Error('Feil ved henting av chats');
-    const chats = await response.json();
-    if (chatSelector) {
-      chatSelector.innerHTML = '';
-      chats.forEach(chat => {
-        const chatTitle = typeof chat === 'string' ? chat : chat.title;
-        const option = document.createElement('option');
-        option.value = chatTitle;
-        option.textContent = chatTitle;
-        chatSelector.appendChild(option);
-      });
-      const chatExists = chats.some(chat => {
-        const chatTitle = typeof chat === 'string' ? chat : chat.title;
-        return chatTitle === currentChatId;
-      });
-      if (currentChatId && chatExists) {
-        chatSelector.value = currentChatId;
-        if (autoLoad) {
-          await loadChat(currentChatId);
+async function fetchChats() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/chats`);
+        if (!response.ok) throw new Error('Feil ved henting av chats');
+        
+        const chats = await response.json();
+        if (chatSelector) {
+            chatSelector.innerHTML = '';
+            chats.forEach(chat => {
+                const option = document.createElement('option');
+                option.value = chat.id;
+                option.textContent = chat.title || chat.id;
+                chatSelector.appendChild(option);
+            });
+            
+            // Velg den første chatten hvis ingen er valgt
+            if (chats.length > 0 && !currentChatId) {
+                currentChatId = chats[0].id;
+                chatSelector.value = currentChatId;
+                loadChat(currentChatId);
+            }
         }
-      }
+    } catch (error) {
+        console.error('Feil ved henting av chats:', error);
     }
-  } catch (error) {
-    console.error('fetchChats: Feil:', error);
-  }
 }
 
 /**
- * loadChat
+ * loadChat - Oppdatert for å håndtere alle chatdata
  */
 async function loadChat(chatId) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
-    if (response.ok) {
-      const chat = await response.json();
-      currentChatId = chat.title;
-      selectedModel = chat.model;
-      if (modelSelector) {
-        modelSelector.value = chat.model;
-      }
-      displayChatMessages(chat.messages);
-
-      if (chat.context_files && Array.isArray(chat.context_files)) {
-        chat.context_files.forEach(filename => {
-          addBackendFileUpload(filename);
-        });
-      }
-    } else {
-      alert("Feil ved lasting av chat.");
+    if (!chatId) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/chats/${chatId}`);
+        if (!response.ok) throw new Error('Feil ved lasting av chat');
+        
+        const chatData = await response.json();
+        
+        // Oppdater modell-selector hvis tilgjengelig
+        if (modelSelector && chatData.model) {
+            modelSelector.value = chatData.model;
+            selectedModel = chatData.model;
+        }
+        
+        // Vis meldinger
+        displayChatMessages(chatData.messages);
+        
+        // Håndter filer hvis de finnes
+        if (chatData.files) {
+            chatData.files.forEach(file => {
+                addBackendFileUpload(file);
+            });
+        }
+        
+        // Håndter long context selection hvis det finnes
+        if (chatData.long_context_selection && longSelector) {
+            longSelector.value = chatData.long_context_selection;
+        }
+        
+        // Oppdater UI med kontekstlengde og token-estimater
+        updateUIElements(chatData);
+        
+    } catch (error) {
+        console.error('Feil ved lasting av chat:', error);
+        appendMessageToChat('error', `Feil ved lasting av chat: ${error.message}`);
     }
-  } catch (error) {
-    alert("Feil ved lasting av chat.");
-  }
 }
 
 /**
- * handleFileSelection
+ * updateUIElements - Forbedret versjon
  */
-function handleFileSelection(event) {
-  const fileUploadDiv = event.target.closest('.w-file-upload');
-  if (!fileUploadDiv) return;
-
-  const allFileUploads = document.querySelectorAll('.w-file-upload');
-  const selectedFilesCount = Array.from(allFileUploads).filter(uploadDiv => {
-    const successView = uploadDiv.querySelector('.w-file-upload-success');
-    return successView && !successView.classList.contains('w-hidden');
-  }).length;
-
-  if (selectedFilesCount >= 5) {
-    return;
-  }
-
-  if (event.target.files && event.target.files[0]) {
-    const file = event.target.files[0];
-    const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
-    const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
-    const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
-
-    if (defaultView && uploadSuccess && fileNameDiv) {
-      fileNameDiv.textContent = file.name;
-      uploadSuccess.classList.remove('w-hidden');
-      defaultView.classList.add('w-hidden');
+function updateUIElements(data) {
+    if (!data) return;
+    
+    try {
+        // Oppdater modell-info
+        if (data.selected_model) {
+            const modelInfo = document.getElementById('model-info');
+            if (modelInfo) {
+                modelInfo.textContent = `Modell: ${data.selected_model}`;
+            }
+        }
+        
+        // Oppdater kontekstlengde
+        if (data.context_length !== undefined) {
+            const contextLength = document.getElementById('context-length');
+            if (contextLength) {
+                contextLength.textContent = `Kontekst: ${data.context_length} tokens`;
+            }
+        }
+        
+        // Oppdater token-estimat
+        if (data.estimated_tokens !== undefined) {
+            const tokenEstimate = document.getElementById('token-estimate');
+            if (tokenEstimate) {
+                tokenEstimate.textContent = `Est. tokens: ${data.estimated_tokens}`;
+            }
+        }
+        
+        // Oppdater fil-liste hvis tilgjengelig
+        if (data.files && fileList) {
+            fileList.innerHTML = '';
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.textContent = file;
+                fileList.appendChild(item);
+            });
+        }
+    } catch (error) {
+        console.error('Feil ved oppdatering av UI-elementer:', error);
     }
-    const removeButton = uploadSuccess.querySelector('.w-file-remove-link');
-    if (removeButton) {
-      removeButton.addEventListener('click', function () {
-        removeFileUpload(fileUploadDiv);
-      });
-    }
-    if (selectedFilesCount < 5) {
-      const newUploadDiv = document.createElement('div');
-      newUploadDiv.className = 'w-file-upload';
-      const newId = `file-${allFileUploads.length + 1}`;
-      newUploadDiv.innerHTML = `
-        <div class="w-file-upload-default">
-          <input class="w-file-upload-input" 
-                 accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
-                 name="file"
-                 data-name="File"
-                 type="file"
-                 id="${newId}">
-          <label for="${newId}" role="button" class="button-3 w-file-upload-label">
-            <div class="w-icon-file-upload-icon"></div>
-            <div class="text w-inline-block">Upload File</div>
-          </label>
-          <div class="w-file-upload-info">Max file size 10MB.</div>
-        </div>
-        <div class="w-file-upload-uploading w-hidden">
-          <div class="w-file-upload-uploading-btn">
-            <svg class="w-icon-file-upload-uploading" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
-              <path fill="currentColor" opacity=".2" d="M15 30a15 15 0 1 1 0-30 15 15 0 0 1 0 30zm0-3a12 12 0 1 0 0-24 12 12 0 0 0 0 24z"></path>
-              <path fill="currentColor" opacity=".75" d="M0 15A15 15 0 0 1 15 0v3A12 12 0 0 0 3 15H0z">
-                <animateTransform attributeName="transform" attributeType="XML" dur="0.6s" from="0 15 15" repeatCount="indefinite" to="360 15 15" type="rotate"></animateTransform>
-              </path>
-            </svg>
-            <div class="w-inline-block">Uploading...</div>
-          </div>
-        </div>
-        <div class="w-file-upload-success w-hidden">
-          <div class="w-file-upload-file">
-            <div class="w-file-upload-file-name"></div>
-            <div aria-label="Remove file" role="button" tabindex="0" class="w-file-remove-link">
-              <div class="w-icon-file-upload-remove"></div>
-            </div>
-          </div>
-        </div>
-        <div class="w-file-upload-error w-hidden">
-          <div class="w-file-upload-error-msg">Upload failed. Max size for files is 10 MB.</div>
-        </div>`;
-
-      fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
-      const newInput = newUploadDiv.querySelector('.w-file-upload-input');
-      if (newInput) {
-        newInput.addEventListener('change', handleFileSelection);
-      }
-      const newRemoveButton = newUploadDiv.querySelector('.w-file-remove-link');
-      if (newRemoveButton) {
-        newRemoveButton.addEventListener('click', function () {
-          removeFileUpload(newUploadDiv);
-        });
-      }
-    }
-  }
 }
 
-function updateFileList(files) {
-  if (!fileList) return;
-  fileList.innerHTML = '';
-  Array.from(files).forEach(file => {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.textContent = `${file.name} (${formatFileSize(file.size)})`;
-    fileList.appendChild(item);
-  });
+/**
+ * Hjelpefunksjon for å sjekke om en modell støtter RAG
+ */
+function isRagSupportedModel(model) {
+    // Liste over modeller som støtter RAG
+    const ragSupportedModels = [
+        "gpt-4o",
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "gemini-1.5-pro"
+    ];
+    return ragSupportedModels.includes(model);
 }
 
 /**
@@ -1020,6 +925,12 @@ function setupEventListeners() {
       return false;
     });
   }
+
+  // Initialiser file inputs
+  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+  initialFileInputs.forEach(input => {
+    input.addEventListener('change', handleFileSelection);
+  });
 }
 
 /**
