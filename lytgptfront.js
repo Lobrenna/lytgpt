@@ -1,4 +1,4 @@
-// Fjern dupliserte initialiseringslogger og samle dem i én
+// Umiddelbar logging når scriptet lastes
 console.log('%c🚀 LYT GPT Frontend v8.0.5 Loading...', 'font-size: 20px; font-weight: bold; color: #4CAF50;');
 
 // URL til FastAPI-backenden (oppdater hvis nødvendig)
@@ -111,27 +111,23 @@ async function populateLongSelector() {
   if (!longSelector) return;
 
   try {
-    const response = await fetch("http://localhost:8000/long-context-options");
+    const response = await fetch(`${API_BASE_URL}/long-context-options`);
     if (!response.ok) {
       throw new Error(`Feil: HTTP ${response.status}`);
     }
     const options = await response.json();
     
-    // Tøm <select>
     longSelector.innerHTML = "";
-
-    // Legg til et tomt valg først
     const emptyOption = document.createElement("option");
     emptyOption.value = "";
     emptyOption.textContent = "-- Ingen valgt --";
     longSelector.appendChild(emptyOption);
 
-    // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
     for (const key in options) {
       if (options.hasOwnProperty(key)) {
         const option = document.createElement("option");
-        option.value = key;          // "Claude docs"
-        option.textContent = key;    // vises i UI
+        option.value = key;
+        option.textContent = key;
         longSelector.appendChild(option);
       }
     }
@@ -140,10 +136,6 @@ async function populateLongSelector() {
   }
 }
 
-
-/**
- * appendMessageToChat
- */
 function appendMessageToChat(role, htmlContent) {
   if (!chatMessages) {
     console.error("Chat messages element not found.");
@@ -153,7 +145,6 @@ function appendMessageToChat(role, htmlContent) {
   msgEl.classList.add('chat-message', role);
   msgEl.style.whiteSpace = 'pre-wrap';
 
-  // For brukerens meldinger, fjern ev. "Context:" etc.
   if (role === 'user') {
     if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
       const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
@@ -164,14 +155,12 @@ function appendMessageToChat(role, htmlContent) {
     htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
   }
 
-  // Kjapp sjekk for om innholdet bør formateres med markdown
   if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
     htmlContent = renderMarkdown(htmlContent);
   }
 
   msgEl.innerHTML = htmlContent;
 
-  // Syntax-highlighting
   const codeBlocks = msgEl.querySelectorAll('pre code');
   codeBlocks.forEach((block) => {
     Prism.highlightElement(block);
@@ -186,42 +175,13 @@ function appendMessageToChat(role, htmlContent) {
   return msgEl;
 }
 
-/**
- * displayChatMessages
- */
 function displayChatMessages(messages) {
-  if (!chatMessages) return;
-  chatMessages.innerHTML = '';
-  
-  messages.forEach(message => {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${message.role}`;
-    
-    if (message.role === 'sources') {
-      messageDiv.innerHTML = `<pre>${message.content}</pre>`;
-    } else if (message.role === 'system') {
-      messageDiv.innerHTML = `<div class="system-message">${renderMarkdown(message.content)}</div>`;
-    } else if (message.sources) {
-      // Vis først meldingen
-      messageDiv.innerHTML = renderMarkdown(message.content);
-      // Legg til kilder hvis de finnes
-      const sourcesDiv = document.createElement('div');
-      sourcesDiv.className = 'chat-message sources';
-      sourcesDiv.innerHTML = `<pre>Kilder:\n${message.sources.join('\n')}</pre>`;
-      chatMessages.appendChild(messageDiv);
-      chatMessages.appendChild(sourcesDiv);
-      return;
-    } else if (message.error) {
-      messageDiv.className = `chat-message error`;
-      messageDiv.innerHTML = `<div class="error-message">${message.error}</div>`;
-    } else {
-      messageDiv.innerHTML = renderMarkdown(message.content);
-    }
-    
-    chatMessages.appendChild(messageDiv);
+  clearChatMessages();
+  messages.forEach(msg => {
+    const content = msg.content;
+    const html = renderMarkdown(content);
+    appendMessageToChat(msg.role, html);
   });
-  
-  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function clearChatMessages() {
@@ -240,7 +200,10 @@ const MODEL_TOKEN_LIMITS = {
     "gpt-4o-mini": 128000,
     "gemini-pro": 128000,
     "gemini-1.5-pro": 2097152,
-    // ... legg til flere modeller etter behov
+    "claude-3-5-sonnet-20240620": 80000,
+    "claude-3-opus-20240229": 80000,
+    "claude-3-sonnet-20240229": 80000,
+    "claude-3-haiku-20240307": 80000
 };
 
 /**
@@ -248,124 +211,110 @@ const MODEL_TOKEN_LIMITS = {
  */
 async function createNewChat() {
     try {
-        const model = modelSelector ? modelSelector.value : null;
         const response = await fetch(`${API_BASE_URL}/chats`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                model: model,
-                system_prompt: null  // La backend bruke default
-            })
+            body: JSON.stringify({ model: selectedModel })
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            console.error("createNewChat: Feil respons:", response.status, response.statusText);
+            throw new Error('Feil ved opprettelse av chat');
         }
-        
         const data = await response.json();
-        return data.chat_id || data.title;
+        if (data.title) {
+            return data.title;
+        } else if (data.chat_id) {
+            return data.chat_id;
+        } else {
+            console.error("createNewChat: Mangler chat_id i responsen:", data);
+            throw new Error('Mangler chat_id i respons fra server');
+        }
     } catch (error) {
-        console.error('Feil ved opprettelse av chat:', error);
+        console.error('createNewChat: Feil:', error);
         throw error;
+    }
+}
+
+async function onNewChat() {
+    try {
+        currentChatId = await createNewChat();
+        await updateChatSelector(currentChatId);
+        clearChatMessages();
+    } catch (error) {
+        console.error("onNewChat: Feil:", error);
+        alert("Feil ved opprettelse av ny chat.");
     }
 }
 
 async function sendMessage(chatId, message) {
-    console.group('%c📨 Send Message Operation', 'font-size: 16px; color: #2196F3;');
-    
-    const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
-    let formData = new FormData();
-    
-    // Debug logging
-    console.log('%c🔍 Starting sendMessage function', 'color: #9C27B0');
-    
-    // Fil-logging og håndtering
-    console.group('%c📎 File Input Detection', 'color: #FF9800');
-    
-    // 1. Standard file inputs
-    const standardFileInputs = document.querySelectorAll('input[type="file"]');
-    console.log(`Found ${standardFileInputs.length} standard file inputs:`, standardFileInputs);
-
-    // 2. Webflow specific
-    const webflowFileInputs = document.querySelectorAll('.w-file-upload-input');
-    console.log(`Found ${webflowFileInputs.length} Webflow file inputs:`, webflowFileInputs);
-
-    // 3. Additional Webflow elements
-    const webflowUploads = document.querySelectorAll('[data-wf-file-upload-element="input"]');
-    console.log(`Found ${webflowUploads.length} Webflow upload elements:`, webflowUploads);
-
-    // Combine all file inputs
-    const allFileInputs = [...standardFileInputs, ...webflowFileInputs, ...webflowUploads];
-    
-    if (allFileInputs.length === 0) {
-        console.warn('⚠️ No file input elements found on page!');
+    if (!chatId) {
+        throw new Error('Chat ID er påkrevd');
     }
-    
-    allFileInputs.forEach((input, index) => {
-        console.group(`📄 File Input ${index + 1} Details`);
-        console.table({
-            type: input.type,
-            id: input.id,
-            class: input.className,
-            hasFiles: input.files?.length > 0,
-            filesCount: input.files?.length || 0
-        });
-        
-        if (input.files?.length > 0) {
-            const file = input.files[0];
-            console.table({
-                name: file.name,
-                size: `${(file.size / 1024).toFixed(2)} KB`,
-                type: file.type,
-                lastModified: new Date(file.lastModified).toLocaleString()
-            });
-            formData.append('files', file);
-            console.log('✅ File added to FormData');
+
+    const encodedChatId = encodeURIComponent(chatId);
+    const url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+    console.log("Sender melding til:", url);
+
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('model', selectedModel);
+
+    const longSelector = document.getElementById('long-selector');
+    if (longSelector) {
+        const selectedLongContext = longSelector.value;
+        if (selectedLongContext) {
+            console.log("Valgt long context:", selectedLongContext);
+            formData.append('long_context_selection', selectedLongContext);
         }
-        console.groupEnd();
+    }
+
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    const backendFiles = [];
+    const manualFiles = [];
+
+    fileInputs.forEach(input => {
+        const backendFile = input.getAttribute('data-backend-file');
+        if (backendFile) {
+            backendFiles.push(backendFile);
+        }
+        if (input.files && input.files[0]) {
+            manualFiles.push(input.files[0]);
+        }
     });
-    
-    console.groupEnd(); // End file input detection
 
-    // FormData content logging
-    console.group('%c🔍 FormData Content', 'color: #E91E63');
-    for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-            console.log(`${key}:`, {
-                name: value.name,
-                size: `${(value.size / 1024).toFixed(2)} KB`,
-                type: value.type
-            });
-        } else {
-            console.log(`${key}:`, value);
-        }
-    }
-    console.groupEnd();
+    backendFiles.forEach(backendFile => {
+        formData.append('backend_files', backendFile);
+    });
 
-    // Rest of your existing code...
+    manualFiles.forEach(file => {
+        formData.append('files', file);
+    });
+
     try {
-        console.log(`🌐 Sending request to: ${url}`);
+        console.log("Sender forespørsel til:", url);
         const response = await fetch(url, {
             method: 'POST',
-            body: formData
+            body: formData,
         });
 
         if (!response.ok) {
-            throw new Error(`Network error: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(
+                `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+                JSON.stringify(errorData)
+            );
         }
 
         const data = await response.json();
-        console.log("✅ Server response:", data);
-        console.groupEnd(); // End send message operation
+        console.log("Server respons:", data);
         return data;
     } catch (error) {
-        console.error("❌ Error:", error);
-        console.groupEnd(); // End send message operation
+        console.error("Feil ved sending av melding:", error);
         throw error;
     }
 }
 
-// Definer onSendMessage før setupEventListeners
 async function onSendMessage() {
     if (!chatInput || !chatInput.value.trim()) return;
     
@@ -377,19 +326,37 @@ async function onSendMessage() {
             currentChatId = await createNewChat();
         }
         
-        appendMessageToChat('user', renderMarkdown(message));
+        // Add temporary "Generating..." message
+        const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+        showSpinner(sendButton, 'Sender...');
         
         const data = await sendMessage(currentChatId, message);
-        if (data.response) {
-            appendMessageToChat('assistant', renderMarkdown(data.response));
+        console.log("Mottatt data fra server:", data);
+        
+        // Remove temporary message
+        if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
         }
         
-        // Oppdater UI med kontekstlengde og token-estimater
-        updateUIElements(data);
+        // Show model info if available
+        if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+            const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+            appendMessageToChat('system', modelInfo);
+        }
+        
+        appendMessageToChat('assistant', renderMarkdown(data.response));
+        
+        // Update chat ID if needed
+        if (data.new_chat_id) {
+            currentChatId = data.new_chat_id;
+            await updateChatSelector(currentChatId);
+        }
         
     } catch (error) {
         console.error('Feil ved sending av melding:', error);
-        appendMessageToChat('error', `Feil ved sending av melding: ${error.message}`);
+        appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+    } finally {
+        hideSpinner(sendButton);
     }
 }
 
@@ -689,6 +656,8 @@ let isInitialized = false;
  * DOMContentLoaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
+    if (isInitialized) return;
+    
     try {
         console.log("Starter initialisering...");
         
@@ -719,6 +688,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        if (chatInput) {
+            chatInput.style.color = "#000";
+        }
+
+        const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+        initialFileInputs.forEach(input => {
+            input.addEventListener('change', handleFileSelection);
+        });
+        
+        isInitialized = true;
         console.log("Initialisering fullført");
     } catch (error) {
         console.error("Feil under initialisering:", error);
@@ -728,7 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 /**
  * fetchChats - Oppdatert for å håndtere alle chat-data
  */
-async function fetchChats() {
+async function fetchChats(autoLoad = true) {
     try {
         const response = await fetch(`${API_BASE_URL}/chats`);
         if (!response.ok) throw new Error('Feil ved henting av chats');
@@ -933,3 +912,42 @@ async function updateChatSelector(newChatId) {
 
 // Sikrer at removeFileUpload er tilgjengelig globalt
 window.removeFileUpload = removeFileUpload;
+
+function handleFileSelection(event) {
+    const fileUploadDiv = event.target.closest('.w-file-upload');
+    if (!fileUploadDiv) return;
+
+    const allFileUploads = document.querySelectorAll('.w-file-upload');
+    const selectedFilesCount = Array.from(allFileUploads).filter(uploadDiv => {
+        const successView = uploadDiv.querySelector('.w-file-upload-success');
+        return successView && !successView.classList.contains('w-hidden');
+    }).length;
+
+    if (selectedFilesCount >= 5) return;
+
+    if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
+        const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
+        const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
+
+        if (defaultView && uploadSuccess && fileNameDiv) {
+            fileNameDiv.textContent = file.name;
+            uploadSuccess.classList.remove('w-hidden');
+            defaultView.classList.add('w-hidden');
+        }
+
+        // Add remove button functionality
+        const removeButton = uploadSuccess.querySelector('.w-file-remove-link');
+        if (removeButton) {
+            removeButton.addEventListener('click', function () {
+                removeFileUpload(fileUploadDiv);
+            });
+        }
+
+        // Create new upload div if needed
+        if (selectedFilesCount < 5) {
+            // ... existing file upload div creation code ...
+        }
+    }
+}
