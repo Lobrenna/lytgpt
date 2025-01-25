@@ -270,7 +270,7 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-    console.group('📨 Send Message Details');  // Start en gruppe for bedre organisering
+    console.group('📨 Send Message Details');
     
     const url = `${API_BASE_URL}/chats/${encodeURIComponent(chatId)}/messages`;
     let formData = new FormData();
@@ -292,21 +292,35 @@ async function sendMessage(chatId, message) {
     }
 
     // Fil-logging og håndtering
-    console.group('📎 Filer');
-    const fileInputs = document.querySelectorAll('.w-file-upload-input');
-    console.log('Fant fileInputs:', fileInputs.length);
+    console.group('📎 Fil-elementer i DOM');
     
-    fileInputs.forEach((input, index) => {
-        console.log(`FileInput ${index + 1}:`, {
-            files: input.files,
-            hasFiles: input.files?.length > 0,
-            id: input.id,
-            className: input.className
-        });
+    // 1. Standard file input
+    const standardFileInputs = document.querySelectorAll('input[type="file"]');
+    console.log(`Fant ${standardFileInputs.length} standard file inputs:`, standardFileInputs);
+
+    // 2. Webflow file upload
+    const webflowFileInputs = document.querySelectorAll('.w-file-upload-input');
+    console.log(`Fant ${webflowFileInputs.length} Webflow file inputs:`, webflowFileInputs);
+
+    // 3. Webflow file upload wrapper
+    const webflowUploads = document.querySelectorAll('[data-wf-file-upload-element="input"]');
+    console.log(`Fant ${webflowUploads.length} Webflow upload wrappers:`, webflowUploads);
+
+    // Sjekk alle mulige fil-inputs
+    const allFileInputs = [...standardFileInputs, ...webflowFileInputs, ...webflowUploads];
+    
+    allFileInputs.forEach((input, index) => {
+        console.group(`Fil-input ${index + 1}`);
+        console.log('Element:', input);
+        console.log('Type:', input.type);
+        console.log('ID:', input.id);
+        console.log('Class:', input.className);
+        console.log('Files:', input.files);
+        console.log('Has files:', input.files?.length > 0);
         
-        if (input.files && input.files.length > 0) {
+        if (input.files?.length > 0) {
             const file = input.files[0];
-            console.log(`Legger til fil ${index + 1}:`, {
+            console.log('Fil-detaljer:', {
                 name: file.name,
                 size: file.size,
                 type: file.type,
@@ -314,18 +328,7 @@ async function sendMessage(chatId, message) {
             });
             formData.append('files', file);
         }
-    });
-    
-    // Sjekk også Webflow's egne fil-elementer
-    const webflowUploads = document.querySelectorAll('[data-wf-file-upload-element="input"]');
-    console.log('Fant Webflow uploads:', webflowUploads.length);
-    
-    webflowUploads.forEach((upload, index) => {
-        console.log(`Webflow Upload ${index + 1}:`, {
-            element: upload,
-            files: upload.files,
-            hasFiles: upload.files?.length > 0
-        });
+        console.groupEnd();
     });
     
     console.groupEnd(); // Avslutt fil-gruppe
