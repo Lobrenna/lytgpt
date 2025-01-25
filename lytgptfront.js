@@ -1,3 +1,5 @@
+console.log('JavaScript fil lastet!');
+
 // URL til FastAPI-backenden (oppdater hvis nødvendig)
 const API_BASE_URL = "http://localhost:8000";
 
