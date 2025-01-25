@@ -755,36 +755,48 @@ let isInitialized = false;
  * DOMContentLoaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  if (isInitialized) return;
-  
-  // 1) Hent modeller
-  await fetchModels();
+  try {
+    console.log("Starter initialisering...");
+    
+    // 1) Hent modeller
+    await fetchModels();
+    console.log("Modeller hentet");
 
-  // 2) Hent long-context valg
-  await populateLongSelector();
+    // 2) Hent long-context valg
+    await populateLongSelector();
+    console.log("Long-context valg hentet");
 
-  // Opprett ny chat om vi ikke har en
-  if (!currentChatId) {
-    try {
-      currentChatId = await createNewChat();
-    } catch (error) {
-      console.error("Feil ved opprettelse av ny chat:", error);
+    // Opprett ny chat om vi ikke har en
+    if (!currentChatId) {
+      try {
+        currentChatId = await createNewChat();
+        console.log("Ny chat opprettet:", currentChatId);
+      } catch (error) {
+        console.error("Feil ved opprettelse av ny chat:", error);
+      }
     }
-  }
 
-  // 3) Hent oversikt over chats
-  await fetchChats();
-  // 4) Sett opp event listeners
-  setupEventListeners();
-  if (chatInput) {
-    chatInput.style.color = "#000";
-  }
+    // 3) Hent oversikt over chats
+    await fetchChats();
+    console.log("Chats hentet");
 
-  const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-  initialFileInputs.forEach(input => {
-    input.addEventListener('change', handleFileSelection);
-  });
-  isInitialized = true;
+    // 4) Sett opp event listeners
+    setupEventListeners();
+    console.log("Event listeners satt opp");
+
+    if (chatInput) {
+      chatInput.style.color = "#000";
+    }
+
+    const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+    initialFileInputs.forEach(input => {
+      input.addEventListener('change', handleFileSelection);
+    });
+
+    console.log("Initialisering fullført");
+  } catch (error) {
+    console.error("Feil under initialisering:", error);
+  }
 });
 
 /**
