@@ -1093,3 +1093,10 @@ function onCancelDelete() {
     overlay.style.display = 'none';
   }
 }
+
+// Legg til event-lytter for endring av valgt modell
+modelSelector.addEventListener('change', function() {
+  // Oppdater selectedModel-variabelen med den nye verdien fra Dropbox
+  selectedModel = this.value;
+  console.log('Valgt modell:', selectedModel);
+});
