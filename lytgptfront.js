@@ -268,6 +268,7 @@ async function sendMessage(chatId, message) {
   }
 
   console.log("sendMessage: Starter med chatId:", chatId);
+  console.log("Selected model:", selectedModel);
 
   // Klargjør endepunkt-URL
   const encodedChatId = encodeURIComponent(chatId);
