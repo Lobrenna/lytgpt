@@ -247,19 +247,21 @@ async function createNewChat() {
 
 async function sendMessage(chatId, message, model = null, files = [], long_context_selection = null) {
     console.log('message', message);
-    console.log('model', model);
-    console.log('long_context_selection', long_context_selection);
+    console.log('model', model || selectedModel);  // Bruk selectedModel hvis model ikke er satt
+    console.log('long_context_selection', long_context_selection || (longSelector ? longSelector.value : null));
 
     const formData = new FormData();
     formData.append('message', message);
-    if (model) formData.append('model', model);
-    if (long_context_selection) formData.append('long_context_selection', long_context_selection);
+    formData.append('model', model || selectedModel);  // Alltid send med en modell
+    if (longSelector && longSelector.value) {
+        formData.append('long_context_selection', longSelector.value);
+    }
     files.forEach(file => formData.append('files', file));
 
     try {
         // Sjekk om long_context_selection er en PKL-basert kontekst
-        const isPklContext = long_context_selection && 
-            longContextOptions[long_context_selection]?.some(file => file.endsWith('.pkl'));
+        const isPklContext = longSelector && longSelector.value && 
+            longContextOptions[longSelector.value]?.some(file => file.endsWith('.pkl'));
         
         // Velg endpoint basert på om vi har PKL-filer i konteksten
         const endpoint = isPklContext ? 'rag' : 'messages';
@@ -278,8 +280,7 @@ async function sendMessage(chatId, message, model = null, files = [], long_conte
         console.log('sendMessage: Server response:', data);
         return data;
     } catch (error) {
-        console.log('sendMessage: Server error:', error);
-        console.log('sendMessage: Error sending message:', error);
+        console.error('sendMessage: Error:', error);
         throw error;
     }
 }
@@ -308,32 +309,31 @@ async function onSendMessage() {
     if (!chatInput || !chatInput.value.trim()) return;
 
     const message = chatInput.value.trim();
-
-    // 1. Vis brukerens melding i chatvinduet
     appendMessageToChat('user', renderMarkdown(message));
     chatInput.value = '';
 
-    // Midlertidig melding
     const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
     showSpinner(sendButton, 'Sender...');
 
     try {
         if (!currentChatId) {
-            throw new Error('Ingen aktiv chat');
+            currentChatId = await createNewChat();
         }
 
-        let data;
-        console.log("Sender melding til backend...");
-
-        data = await sendMessage(currentChatId, message);
+        const data = await sendMessage(
+            currentChatId, 
+            message, 
+            modelSelector ? modelSelector.value : null,
+            [],  // files
+            longSelector ? longSelector.value : null
+        );
+        
         console.log("Mottatt data fra server:", data);
 
-        // Fjern "Genererer svar..."
         if (generatingMessage && generatingMessage.parentNode) {
             generatingMessage.parentNode.removeChild(generatingMessage);
         }
 
-        // Vis litt info
         if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
             const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
             appendMessageToChat('system', modelInfo);
@@ -341,11 +341,17 @@ async function onSendMessage() {
 
         appendMessageToChat('assistant', renderMarkdown(data.response));
 
-        // Sjekk om vi skal rename (etter første reelle spørsmål/svar)
+        // Oppdater chat-id hvis backend returnerer en ny
+        if (data.new_chat_id) {
+            currentChatId = data.new_chat_id;
+            console.log("Oppdatert currentChatId til:", currentChatId);
+            await updateChatSelector(currentChatId);
+        }
+
+        // Sjekk om vi skal rename (etter 6 meldinger)
         const messages = document.querySelectorAll('.chat-message');
         console.log("Antall meldinger:", messages.length);
         
-        // Rename etter 6 meldinger (oversikt + første reelle spørsmål/svar)
         if (messages.length === 6) {
             try {
                 console.log("Starter rename prosess");
