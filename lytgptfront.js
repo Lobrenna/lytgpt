@@ -335,6 +335,13 @@ async function sendMessage(chatId, message) {
       // Vis feilmelding til brukeren
       alert(`Feil: ${data.detail}`);
     }
+
+    // Vis litt info
+    if (data && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+    }
+
   } catch (error) {
     console.error('sendMessage: Feil ved sending av melding:', error);
     alert('En feil oppstod ved å sende meldingen. Vennligst prøv igjen.');
@@ -392,7 +399,7 @@ async function onSendMessage() {
     }
 
     // Vis litt info
-    if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+    if (data && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
       const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
     }
