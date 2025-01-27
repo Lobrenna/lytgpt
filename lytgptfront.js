@@ -341,11 +341,12 @@ async function onSendMessage() {
 
         appendMessageToChat('assistant', renderMarkdown(data.response));
 
-        // Sjekk om vi skal rename (etter andre melding/svar)
+        // Sjekk om vi skal rename (etter første reelle spørsmål/svar)
         const messages = document.querySelectorAll('.chat-message');
         console.log("Antall meldinger:", messages.length);
         
-        if (messages.length === 4) { // To par med meldinger
+        // Rename etter 6 meldinger (oversikt + første reelle spørsmål/svar)
+        if (messages.length === 6) {
             try {
                 console.log("Starter rename prosess");
                 
@@ -363,7 +364,6 @@ async function onSendMessage() {
                     const nameData = await nameResponse.json();
                     console.log("Generert nytt navn:", nameData.name);
                     
-                    // Oppdater chat navn - merk endringen her, new_title som query parameter
                     const renameResponse = await fetch(
                         `${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/rename?new_title=${encodeURIComponent(nameData.name)}`, 
                         {
