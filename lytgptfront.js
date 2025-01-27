@@ -343,8 +343,12 @@ async function onSendMessage() {
 
         // Sjekk om vi skal rename (etter andre melding/svar)
         const messages = document.querySelectorAll('.chat-message');
+        console.log("Antall meldinger:", messages.length);  // Debug logging
+        
         if (messages.length === 4) { // To par med meldinger
             try {
+                console.log("Starter rename prosess");  // Debug logging
+                
                 // Hent siste brukermelding og svar
                 const nameResponse = await fetch(`${API_BASE_URL}/chats/namecontents`, {
                     method: 'POST',
@@ -357,16 +361,28 @@ async function onSendMessage() {
 
                 if (nameResponse.ok) {
                     const nameData = await nameResponse.json();
+                    console.log("Generert nytt navn:", nameData.name);  // Debug logging
+                    
                     // Oppdater chat navn
-                    await fetch(`${API_BASE_URL}/chats/${currentChatId}/rename`, {
+                    const renameResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/rename`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ new_title: nameData.name })
                     });
-                    
-                    // Oppdater UI
-                    currentChatId = nameData.name;
-                    await updateChatSelector(currentChatId);
+
+                    if (renameResponse.ok) {
+                        console.log("Chat renamed til:", nameData.name);  // Debug logging
+                        // Oppdater UI
+                        await fetchChats();
+                        if (chatSelector) {
+                            chatSelector.value = nameData.name;
+                        }
+                        currentChatId = nameData.name;
+                    } else {
+                        console.error("Feil ved rename:", await renameResponse.text());
+                    }
+                } else {
+                    console.error("Feil ved generering av navn:", await nameResponse.text());
                 }
             } catch (renameError) {
                 console.error('Feil ved rename av chat:', renameError);
