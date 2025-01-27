@@ -329,7 +329,7 @@ async function sendMessage(chatId, message) {
       appendMessageToChat('assistant', data.response);
 
       // Oppdater chatter i UI hvis nødvendig
-      await updateChatSelector(chatId);
+      //await updateChatSelector(chatId);
     } else {
       console.error("sendMessage: Serverrespons feilet:", data.detail);
       // Vis feilmelding til brukeren
