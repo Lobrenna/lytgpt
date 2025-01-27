@@ -377,6 +377,7 @@ async function onSendMessage() {
 
   const message = chatInput.value.trim();
 
+
   // Sjekk om meldingen allerede finnes i chatten
   const existingMessage = chatMessages.querySelector(`.chat-message.user div:contains(${message})`);
   if (existingMessage) {
