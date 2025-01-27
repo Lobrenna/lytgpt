@@ -105,6 +105,13 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// Definer global mapping for long-context
+const longContextMap = {};
+
+/**
+ * populateLongSelector()
+ */
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) {
@@ -114,7 +121,7 @@ async function populateLongSelector() {
 
   try {
     console.log("Fetching long-context options from backend...");
-    const response = await fetch("http://localhost:8000/long-context-options");
+    const response = await fetch(`${API_BASE_URL}/long-context-options`);
     if (!response.ok) {
       throw new Error(`Feil: HTTP ${response.status}`);
     }
@@ -133,9 +140,12 @@ async function populateLongSelector() {
     // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
     for (const key in options) {
       if (options.hasOwnProperty(key)) {
+        const filePath = options[key][0]; // Anta én fil per nøkkel
+        longContextMap[key] = filePath; // Lagre i mapping
+
         const option = document.createElement("option");
         option.value = key;          // "Claude docs"
-        option.textContent = key;    // vises i UI
+        option.textContent = key;    // Vis det i UI
         longSelector.appendChild(option);
       }
     }
@@ -249,6 +259,9 @@ async function createNewChat() {
     throw error;
   }
 }
+/**
+ * sendMessage(chatId, message)
+ */
 async function sendMessage(chatId, message) {
   if (!chatId) {
     throw new Error('Chat ID er påkrevd');
@@ -265,47 +278,23 @@ async function sendMessage(chatId, message) {
   formData.append('message', message);
   formData.append('model', selectedModel);
 
-  // Håndter filopplastinger
-  const fileInputs = document.querySelectorAll('.w-file-upload-input');
-  let hasPklFiles = false;
-  let hasOtherFiles = false;
-
-  fileInputs.forEach((input, index) => {
-    // Sjekk for backend-filer
-    const backendFile = input.getAttribute('data-backend-file');
-    if (backendFile) {
-      formData.append('backend_files', backendFile);
-      hasOtherFiles = true;
-      console.log(`Legger til backend-fil: ${backendFile}`);
-    }
-
-    // Sjekk for lokale filer
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      if (file.name.endsWith('.pkl')) {
-        formData.append('pkl_files', file);
-        hasPklFiles = true;
-        console.log(`Legger til .pkl-fil: ${file.name}`);
-      } else {
-        formData.append('files', file);
-        hasOtherFiles = true;
-        console.log(`Legger til lokal fil: ${file.name}`);
-      }
-    }
-  });
-
-  // Endre endepunkt hvis det er .pkl-filer
-  if (hasPklFiles) {
-    url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-    console.log("sendMessage: Det er .pkl-filer. Endrer endepunkt til /rag");
-  }
-
-  // Hent valgt long-context
+  // Bestem hvilken endepunkt som skal brukes basert på long_context_selection
   if (longSelector && longSelector.value) {
-    const selectedLongContext = longSelector.value;
-    console.log("sendMessage: Valgt long context:", selectedLongContext);
+    const selectedLongContextKey = longSelector.value;
+    const filePath = longContextMap[selectedLongContextKey];
 
-    formData.append('long_context_selection', selectedLongContext);
+    if (filePath) {
+      // Sjekk om filen er en .pkl-fil
+      if (filePath.endsWith('.pkl')) {
+        url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+        console.log("sendMessage: Det er en .pkl-fil. Endrer endepunkt til /rag");
+      }
+
+      formData.append('long_context_selection', selectedLongContextKey);
+      console.log("sendMessage: Valgt long context:", selectedLongContextKey);
+    } else {
+      console.warn("sendMessage: Ingen filpath funnet for valgt long-context.");
+    }
   }
 
   console.log("sendMessage: FormData innhold:");
@@ -314,27 +303,31 @@ async function sendMessage(chatId, message) {
   }
 
   try {
-    console.log("sendMessage: Sender forespørsel til:", url);
+    showSpinner(sendButton, "Sender...");
     const response = await fetch(url, {
       method: 'POST',
-      body: formData,
+      body: formData
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("sendMessage: Serverfeil:", errorData);
-      throw new Error(
-        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-        JSON.stringify(errorData)
-      );
-    }
+    const data = await response.json();
+    console.log("sendMessage: Serverrespons:", data);
 
-    const responseData = await response.json();
-    console.log("sendMessage: Serverrespons:", responseData);
-    return responseData;
+    if (response.ok) {
+      // Legg til assistentens svar i chat
+      appendMessageToChat('assistant', data.response);
+
+      // Oppdater chatter i UI hvis nødvendig
+      await updateChatSelector(chatId);
+    } else {
+      console.error("sendMessage: Serverrespons feilet:", data.detail);
+      // Vis feilmelding til brukeren
+      alert(`Feil: ${data.detail}`);
+    }
   } catch (error) {
-    console.error("sendMessage: Feil ved sending av melding:", error);
-    throw error;
+    console.error('sendMessage: Feil ved sending av melding:', error);
+    alert('En feil oppstod ved å sende meldingen. Vennligst prøv igjen.');
+  } finally {
+    hideSpinner(sendButton);
   }
 }
 
