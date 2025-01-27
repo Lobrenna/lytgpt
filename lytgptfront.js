@@ -343,11 +343,11 @@ async function onSendMessage() {
 
         // Sjekk om vi skal rename (etter andre melding/svar)
         const messages = document.querySelectorAll('.chat-message');
-        console.log("Antall meldinger:", messages.length);  // Debug logging
+        console.log("Antall meldinger:", messages.length);
         
         if (messages.length === 4) { // To par med meldinger
             try {
-                console.log("Starter rename prosess");  // Debug logging
+                console.log("Starter rename prosess");
                 
                 // Hent siste brukermelding og svar
                 const nameResponse = await fetch(`${API_BASE_URL}/chats/namecontents`, {
@@ -361,17 +361,19 @@ async function onSendMessage() {
 
                 if (nameResponse.ok) {
                     const nameData = await nameResponse.json();
-                    console.log("Generert nytt navn:", nameData.name);  // Debug logging
+                    console.log("Generert nytt navn:", nameData.name);
                     
-                    // Oppdater chat navn
-                    const renameResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/rename`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ new_title: nameData.name })
-                    });
+                    // Oppdater chat navn - merk endringen her, new_title som query parameter
+                    const renameResponse = await fetch(
+                        `${API_BASE_URL}/chats/${encodeURIComponent(currentChatId)}/rename?new_title=${encodeURIComponent(nameData.name)}`, 
+                        {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' }
+                        }
+                    );
 
                     if (renameResponse.ok) {
-                        console.log("Chat renamed til:", nameData.name);  // Debug logging
+                        console.log("Chat renamed til:", nameData.name);
                         // Oppdater UI
                         await fetchChats();
                         if (chatSelector) {
@@ -379,10 +381,12 @@ async function onSendMessage() {
                         }
                         currentChatId = nameData.name;
                     } else {
-                        console.error("Feil ved rename:", await renameResponse.text());
+                        const errorText = await renameResponse.text();
+                        console.error("Feil ved rename:", errorText);
                     }
                 } else {
-                    console.error("Feil ved generering av navn:", await nameResponse.text());
+                    const errorText = await nameResponse.text();
+                    console.error("Feil ved generering av navn:", errorText);
                 }
             } catch (renameError) {
                 console.error('Feil ved rename av chat:', renameError);
