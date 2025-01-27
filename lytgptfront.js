@@ -313,6 +313,17 @@ async function sendMessage(chatId, message) {
     console.log("sendMessage: Serverrespons:", data);
 
     if (response.ok) {
+      // Sjekk om data er definert og om selected_model er tilgjengelig
+      if (data && data.selected_model) {
+        // Aksesser selected_model her
+        selectedModel = data.selected_model;
+        if (modelSelector) {
+          modelSelector.value = selectedModel;
+        }
+      } else {
+        console.error("sendMessage: 'selected_model' mangler i responsen:", data);
+      }
+
       // Legg til assistentens svar i chat
       appendMessageToChat('assistant', data.response);
 
