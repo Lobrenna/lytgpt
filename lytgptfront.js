@@ -342,6 +342,62 @@ async function sendMessage(chatId, message) {
       appendMessageToChat('system', modelInfo);
     }
 
+    // **Legg til denne linjen for å returnere data**
+    return data;
+
+  } catch (error) {
+    console.error('sendMessage: Feil ved sending av melding:', error);
+    alert('En feil oppstod ved å sende meldingen. Vennligst prøv igjen.');
+  } finally {
+    hideSpinner(sendButton);
+  }
+}
+
+
+  console.log("sendMessage: FormData innhold:");
+  for (let pair of formData.entries()) {
+    console.log(pair[0], pair[1]);
+  }
+
+  try {
+    showSpinner(sendButton, "Sender...");
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    console.log("sendMessage: Serverrespons:", data);
+
+    if (response.ok) {
+      // Sjekk om data er definert og om selected_model er tilgjengelig
+      if (data && data.selected_model) {
+        // Aksesser selected_model her
+        selectedModel = data.selected_model;
+        if (modelSelector) {
+          modelSelector.value = selectedModel;
+        }
+      } else {
+        console.error("sendMessage: 'selected_model' mangler i responsen:", data);
+      }
+
+      // Legg til assistentens svar i chat
+      appendMessageToChat('assistant', data.response);
+
+      // Oppdater chatter i UI hvis nødvendig
+      await updateChatSelector(chatId);
+    } else {
+      console.error("sendMessage: Serverrespons feilet:", data.detail);
+      // Vis feilmelding til brukeren
+      alert(`Feil: ${data.detail}`);
+    }
+
+    // Vis litt info
+    if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+    }
+
   } catch (error) {
     console.error('sendMessage: Feil ved sending av melding:', error);
     alert('En feil oppstod ved å sende meldingen. Vennligst prøv igjen.');
@@ -386,11 +442,10 @@ async function onSendMessage() {
       throw new Error('Ingen aktiv chat');
     }
 
-    let data;
     console.log("Sender melding til backend...");
 
     // Sender melding sammen med filer
-    data = await sendMessage(currentChatId, message);
+    const data = await sendMessage(currentChatId, message); // Nå vil data ikke være undefined
     console.log("Mottatt data fra server:", data);
 
     // Fjern "Genererer svar..."
@@ -423,6 +478,7 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
 
 /**
  * onNewChat
