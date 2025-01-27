@@ -337,10 +337,10 @@ async function sendMessage(chatId, message) {
     }
 
     // Vis litt info
-    if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-    }
+    //if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+    //  const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+    //  appendMessageToChat('system', modelInfo);
+    //}
 
     // **Legg til denne linjen for å returnere data**
     return data;
