@@ -337,7 +337,7 @@ async function sendMessage(chatId, message) {
     }
 
     // Vis litt info
-    if (data && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+    if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
       const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
     }
@@ -399,7 +399,7 @@ async function onSendMessage() {
     }
 
     // Vis litt info
-    if (data && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+    if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
       const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
       appendMessageToChat('system', modelInfo);
     }
