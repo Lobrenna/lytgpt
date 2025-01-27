@@ -326,7 +326,7 @@ async function sendMessage(chatId, message) {
       }
 
       // Legg til assistentens svar i chat
-      appendMessageToChat('assistant', data.response);
+      //appendMessageToChat('assistant', data.response);
 
       // Oppdater chatter i UI hvis nødvendig
       await updateChatSelector(chatId);
@@ -1071,7 +1071,7 @@ async function updateChatSelector(newChatId) {
   await fetchChats();
   if (chatSelector) {
     chatSelector.value = newChatId;
-    //await loadChat(newChatId);
+    await loadChat(newChatId);
   }
 }
 
