@@ -410,11 +410,11 @@ async function onSendMessage() {
     appendMessageToChat('assistant', renderMarkdown(data.response));
 
     // Oppdater chat-id hvis backend returnerer en ny
-    if (data.new_chat_id) {
-      currentChatId = data.new_chat_id;
-      console.log("Oppdatert currentChatId til:", currentChatId);
-      await updateChatSelector(currentChatId);
-    }
+    //if (data.new_chat_id) {
+    //  currentChatId = data.new_chat_id;
+    //  console.log("Oppdatert currentChatId til:", currentChatId);
+    //  await updateChatSelector(currentChatId);
+    //}
 
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
