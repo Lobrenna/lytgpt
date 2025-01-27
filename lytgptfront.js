@@ -105,29 +105,17 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-
-// Definer global mapping for long-context
-const longContextMap = {};
-
-/**
- * populateLongSelector()
- */
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
-  if (!longSelector) {
-    console.error("Long-selector element not found.");
-    return;
-  }
+  if (!longSelector) return;
 
   try {
-    console.log("Fetching long-context options from backend...");
-    const response = await fetch(`${API_BASE_URL}/long-context-options`);
+    const response = await fetch("http://localhost:8000/long-context-options");
     if (!response.ok) {
       throw new Error(`Feil: HTTP ${response.status}`);
     }
     const options = await response.json();
-    console.log("Long-context options mottatt:", options);
-
+    
     // Tøm <select>
     longSelector.innerHTML = "";
 
@@ -140,12 +128,9 @@ async function populateLongSelector() {
     // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
     for (const key in options) {
       if (options.hasOwnProperty(key)) {
-        const filePath = options[key][0]; // Anta én fil per nøkkel
-        longContextMap[key] = filePath; // Lagre i mapping
-
         const option = document.createElement("option");
         option.value = key;          // "Claude docs"
-        option.textContent = key;    // Vis det i UI
+        option.textContent = key;    // vises i UI
         longSelector.appendChild(option);
       }
     }
@@ -259,100 +244,87 @@ async function createNewChat() {
     throw error;
   }
 }
-/**
- * sendMessage(chatId, message)
- */
+
 async function sendMessage(chatId, message) {
-  if (!chatId) {
-    throw new Error('Chat ID er påkrevd');
-  }
-
-  console.log("sendMessage: Starter med chatId:", chatId);
-  console.log("Selected model:", selectedModel);
-
-  // Klargjør endepunkt-URL
-  const encodedChatId = encodeURIComponent(chatId);
-  let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-
-  // Opprett FormData
-  const formData = new FormData();
-  formData.append('message', message);
-  formData.append('model', selectedModel);
-
-  // Bestem hvilken endepunkt som skal brukes basert på long_context_selection
-  if (longSelector && longSelector.value) {
-    const selectedLongContextKey = longSelector.value;
-    const filePath = longContextMap[selectedLongContextKey];
-
-    if (filePath) {
-      // Sjekk om filen er en .pkl-fil
-      if (filePath.endsWith('.pkl')) {
-        url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-        console.log("sendMessage: Det er en .pkl-fil. Endrer endepunkt til /rag");
-      }
-
-      formData.append('long_context_selection', selectedLongContextKey);
-      console.log("sendMessage: Valgt long context:", selectedLongContextKey);
-    } else {
-      console.warn("sendMessage: Ingen filpath funnet for valgt long-context.");
+    if (!chatId) {
+        throw new Error('Chat ID er påkrevd');
     }
-  }
 
-  console.log("sendMessage: FormData innhold:");
-  for (let pair of formData.entries()) {
-    console.log(pair[0], pair[1]);
-  }
+    console.log("sendMessage: Starting with chatId:", chatId);
 
-  try {
-    showSpinner(sendButton, "Sender...");
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
+    // Klargjør endepunkt-URL
+    const encodedChatId = encodeURIComponent(chatId);
+    
+    // Hent valgt long-context
+    const longSelector = document.getElementById('long-selector');
+    let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+    
+    // Opprett FormData
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('model', selectedModel);
+
+    // Håndter filopplastinger
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    let hasFiles = false;
+
+    fileInputs.forEach((input, index) => {
+        // Sjekk for backend-filer
+        const backendFile = input.getAttribute('data-backend-file');
+        if (backendFile) {
+            formData.append('backend_files', backendFile);
+            hasFiles = true;
+            console.log(`Adding backend file: ${backendFile}`);
+        }
+        // Sjekk for lokale filer
+        if (input.files && input.files[0]) {
+            formData.append('files', input.files[0]);
+            hasFiles = true;
+            console.log(`Adding local file: ${input.files[0].name}`);
+        }
     });
 
-    const data = await response.json();
-    console.log("sendMessage: Serverrespons:", data);
+    if (longSelector && longSelector.value) {
+        const selectedLongContext = longSelector.value;
+        console.log("sendMessage: Selected long context:", selectedLongContext);
 
-    if (response.ok) {
-      // Sjekk om data er definert og om selected_model er tilgjengelig
-      if (data && data.selected_model) {
-        // Aksesser selected_model her
-        selectedModel = data.selected_model;
-        if (modelSelector) {
-          modelSelector.value = selectedModel;
+        if (['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext)) {
+            url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+            formData.append('long_context_selection', selectedLongContext);
+        } else {
+            formData.append('long_context_selection', selectedLongContext);
         }
-      } else {
-        console.error("sendMessage: 'selected_model' mangler i responsen:", data);
-      }
-
-      // Legg til assistentens svar i chat
-      //appendMessageToChat('assistant', data.response);
-
-      // Oppdater chatter i UI hvis nødvendig
-      await updateChatSelector(chatId);
-    } else {
-      console.error("sendMessage: Serverrespons feilet:", data.detail);
-      // Vis feilmelding til brukeren
-      alert(`Feil: ${data.detail}`);
     }
 
-    // Vis litt info
-    //if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-    //  const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-    //  appendMessageToChat('system', modelInfo);
-    //}
+    console.log("sendMessage: FormData contents:");
+    for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+    }
 
-    // **Legg til denne linjen for å returnere data**
-    return data;
+    try {
+        console.log("sendMessage: Sending request to:", url);
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+        });
 
-  } catch (error) {
-    console.error('sendMessage: Feil ved sending av melding:', error);
-    alert('En feil oppstod ved å sende meldingen. Vennligst prøv igjen.');
-  } finally {
-    hideSpinner(sendButton);
-  }
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("sendMessage: Server error:", errorData);
+            throw new Error(
+                `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+                JSON.stringify(errorData)
+            );
+        }
+
+        const responseData = await response.json();
+        console.log("sendMessage: Server response:", responseData);
+        return responseData;
+    } catch (error) {
+        console.error("sendMessage: Error sending message:", error);
+        throw error;
+    }
 }
-
 
 // Separate function for updating UI elements
 function updateUIElements(data) {
@@ -372,61 +344,62 @@ function updateUIElements(data) {
         console.error('Error updating UI elements:', error);
     }
 }
+
+// Update the onSendMessage function
 async function onSendMessage() {
-  if (!chatInput || !chatInput.value.trim()) return;
+    if (!chatInput || !chatInput.value.trim()) return;
 
-  const message = chatInput.value.trim();
+    const message = chatInput.value.trim();
 
-  // 1. Vis brukerens melding i chatvinduet
-  appendMessageToChat('user', renderMarkdown(message));
-  chatInput.value = '';
+    // 1. Vis brukerens melding i chatvinduet
+    appendMessageToChat('user', renderMarkdown(message));
+    chatInput.value = '';
 
-  // Midlertidig melding
-  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-  showSpinner(sendButton, 'Sender...');
+    // Midlertidig melding
+    const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+    showSpinner(sendButton, 'Sender...');
 
-  try {
-    if (!currentChatId) {
-      throw new Error('Ingen aktiv chat');
+    try {
+        if (!currentChatId) {
+            throw new Error('Ingen aktiv chat');
+        }
+
+        let data;
+        console.log("Sender melding til backend...");
+
+        data = await sendMessage(currentChatId, message);
+        console.log("Mottatt data fra server:", data);
+
+        // Fjern "Genererer svar..."
+        if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+        }
+
+        // Vis litt info
+        if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+            const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+            appendMessageToChat('system', modelInfo);
+        }
+
+        appendMessageToChat('assistant', renderMarkdown(data.response));
+
+        // Oppdater chat-id hvis backend returnerer en ny
+        if (data.new_chat_id) {
+            currentChatId = data.new_chat_id;
+            console.log("Oppdatert currentChatId til:", currentChatId);
+            await updateChatSelector(currentChatId);
+        }
+
+    } catch (error) {
+        console.error('Feil ved sending av melding:', error);
+        if (generatingMessage && generatingMessage.parentNode) {
+            generatingMessage.parentNode.removeChild(generatingMessage);
+        }
+        appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+    } finally {
+        hideSpinner(sendButton);
     }
-
-    console.log("Sender melding til backend...");
-
-    // Sender melding sammen med filer
-    const data = await sendMessage(currentChatId, message); // Nå vil data ikke være undefined
-    console.log("Mottatt data fra server:", data);
-
-    // Fjern "Genererer svar..."
-    if (generatingMessage && generatingMessage.parentNode) {
-      generatingMessage.parentNode.removeChild(generatingMessage);
-    }
-
-    // Vis litt info
-    if (data && data.response && data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-      appendMessageToChat('system', modelInfo);
-    }
-
-    appendMessageToChat('assistant', renderMarkdown(data.response));
-
-    // Oppdater chat-id hvis backend returnerer en ny
-    //if (data.new_chat_id) {
-    //  currentChatId = data.new_chat_id;
-    //  console.log("Oppdatert currentChatId til:", currentChatId);
-    //  await updateChatSelector(currentChatId);
-    //}
-
-  } catch (error) {
-    console.error('Feil ved sending av melding:', error);
-    if (generatingMessage && generatingMessage.parentNode) {
-      generatingMessage.parentNode.removeChild(generatingMessage);
-    }
-    appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
-  } finally {
-    hideSpinner(sendButton);
-  }
 }
-
 
 /**
  * onNewChat
@@ -776,7 +749,7 @@ let isInitialized = false;
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log("Starter initialisering...");
-
+    
     // 1) Hent modeller
     await fetchModels();
     console.log("Modeller hentet");
@@ -805,13 +778,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (chatInput) {
       chatInput.style.color = "#000";
-      console.log("chatInput stil satt til svart.");
     }
 
     const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
     initialFileInputs.forEach(input => {
       input.addEventListener('change', handleFileSelection);
-      console.log("Event listener lagt til for initial file input.");
     });
 
     console.log("Initialisering fullført");
@@ -880,12 +851,13 @@ async function loadChat(chatId) {
     alert("Feil ved lasting av chat.");
   }
 }
+
+/**
+ * handleFileSelection
+ */
 function handleFileSelection(event) {
   const fileUploadDiv = event.target.closest('.w-file-upload');
-  if (!fileUploadDiv) {
-    console.error("File upload div not found.");
-    return;
-  }
+  if (!fileUploadDiv) return;
 
   const allFileUploads = document.querySelectorAll('.w-file-upload');
   const selectedFilesCount = Array.from(allFileUploads).filter(uploadDiv => {
@@ -893,10 +865,7 @@ function handleFileSelection(event) {
     return successView && !successView.classList.contains('w-hidden');
   }).length;
 
-  console.log(`Antall valgte filer: ${selectedFilesCount}`);
-
   if (selectedFilesCount >= 5) {
-    console.warn("Maks antall filer er nådd.");
     return;
   }
 
@@ -910,17 +879,13 @@ function handleFileSelection(event) {
       fileNameDiv.textContent = file.name;
       uploadSuccess.classList.remove('w-hidden');
       defaultView.classList.add('w-hidden');
-      console.log(`Fil valgt: ${file.name}`);
     }
-
     const removeButton = uploadSuccess.querySelector('.w-file-remove-link');
     if (removeButton) {
       removeButton.addEventListener('click', function () {
         removeFileUpload(fileUploadDiv);
-        console.log(`Fil fjernet: ${file.name}`);
       });
     }
-
     if (selectedFilesCount < 5) {
       const newUploadDiv = document.createElement('div');
       newUploadDiv.className = 'w-file-upload';
@@ -971,10 +936,8 @@ function handleFileSelection(event) {
       if (newRemoveButton) {
         newRemoveButton.addEventListener('click', function () {
           removeFileUpload(newUploadDiv);
-          console.log("Fil fjernet fra ny upload-div.");
         });
       }
-      console.log("Ny filopplastingsdiv opprettet.");
     }
   }
 }
@@ -996,50 +959,39 @@ function updateFileList(files) {
 function setupEventListeners() {
   if (modelSelector) {
     modelSelector.addEventListener('change', onModelChange);
-    console.log("Event listener lagt til for modelSelector.");
   }
   if (chatSelector) {
     chatSelector.addEventListener('change', onChatChange);
-    console.log("Event listener lagt til for chatSelector.");
   }
   if (sendButton) {
     sendButton.addEventListener('click', onSendMessage);
     sendButton.setAttribute('type', 'button');
-    console.log("Event listener lagt til for sendButton.");
   }
   if (uploadFilesButton) {
     uploadFilesButton.addEventListener('click', onUploadFiles);
-    console.log("Event listener lagt til for uploadFilesButton.");
   }
   if (setUrlButton) {
     setUrlButton.addEventListener('click', onSetUrl);
-    console.log("Event listener lagt til for setUrlButton.");
   }
   if (newChatButton) {
     newChatButton.addEventListener('click', onNewChat);
-    console.log("Event listener lagt til for newChatButton.");
   }
   if (deleteChatButton) {
     deleteChatButton.addEventListener('click', onDeleteChat);
-    console.log("Event listener lagt til for deleteChatButton.");
   }
   if (deleteConfirmYes) {
     deleteConfirmYes.addEventListener('click', onConfirmDelete);
-    console.log("Event listener lagt til for deleteConfirmYes.");
   }
   if (deleteConfirmNo) {
     deleteConfirmNo.addEventListener('click', onCancelDelete);
-    console.log("Event listener lagt til for deleteConfirmNo.");
   }
   if (chatInput) {
     chatInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         onSendMessage();
-        console.log("SendMessage kalt via Enter-tast.");
       }
     });
-    console.log("Event listener lagt til for chatInput keydown.");
   }
   if (urlInput) {
     urlInput.addEventListener('keydown', (event) => {
@@ -1047,21 +999,17 @@ function setupEventListeners() {
         event.preventDefault();
         event.stopPropagation();
         onSetUrl();
-        console.log("onSetUrl kalt via Enter-tast i urlInput.");
       }
     });
-    console.log("Event listener lagt til for urlInput keydown.");
   }
   const urlForm = document.getElementById('email-form');
   if (urlForm) {
     urlForm.addEventListener('submit', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      console.log("Form submission forhåndsstopet.");
       return false;
     });
   }
-  console.log("Alle nødvendige event listeners er satt opp.");
 }
 
 /**
@@ -1105,10 +1053,3 @@ function onCancelDelete() {
     overlay.style.display = 'none';
   }
 }
-
-// Legg til event-lytter for endring av valgt modell
-modelSelector.addEventListener('change', function() {
-  // Oppdater selectedModel-variabelen med den nye verdien fra Dropbox
-  selectedModel = this.value;
-  console.log('Valgt modell:', selectedModel);
-});
