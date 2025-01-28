@@ -248,11 +248,7 @@ function clearChatMessages() {
 /**
  * createNewChat
  */
-/**
- * createNewChat
- */
 async function createNewChat() {
-
   if (!selectedModel) {
     console.error("createNewChat: selectedModel er ikke definert.");
     alert("Ingen modell valgt. Vennligst velg en modell før du oppretter en ny chat.");
@@ -291,6 +287,7 @@ async function createNewChat() {
 
     // Oppdater mappingen
     titleToChatIdMap[chatTitle] = chatId;
+    console.log("createNewChat: titleToChatIdMap oppdatert:", titleToChatIdMap);
 
     // Oppdater dropdown
     const option = document.createElement('option');
@@ -301,6 +298,7 @@ async function createNewChat() {
     // Sett valgt chat til den nye chatten
     chatSelector.value = chatTitle;
     currentChatId = chatId; // Sett currentChatId til den nye chatten
+    console.log("createNewChat: currentChatId satt til:", currentChatId);
     await loadChat(chatId); // Last inn den nye chatten
 
     console.log("createNewChat: Ny chat opprettet med ID:", chatId);
@@ -312,7 +310,6 @@ async function createNewChat() {
     throw error;
   }
 }
-
 
 /**
  * sendMessage
@@ -689,6 +686,10 @@ function onModelChange(e) {
   selectedModel = e.target.value;
   console.log('Valgt modell:', selectedModel);
 }
+
+/**
+ * onChatChange
+ */
 async function onChatChange(e) {
   const chosenTitle = e.target.value;
   const chatId = titleToChatIdMap[chosenTitle] || chosenTitle; // Bruk title som fallback
@@ -709,7 +710,6 @@ async function onChatChange(e) {
     await loadChat(chatId); // Bruk riktig chatId for backend-kall
   }
 }
-
 
 function showError(message) {
   const errorElement = document.querySelector('.w-form-fail');
@@ -870,11 +870,8 @@ async function fetchModels() {
   }
 }
 
-/**
- * fetchChats
- * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
- * @returns {Array} - Returnerer listen av chatter
- */
+let isInitialized = false;
+
 /**
  * fetchChats
  * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
@@ -932,10 +929,6 @@ async function fetchChats(autoLoad = true) {
   }
 }
 
-
-/**
- * loadChat
- */
 /**
  * loadChat
  */
@@ -1069,7 +1062,7 @@ function handleFileSelection(event) {
         <div class="w-file-upload-error w-hidden">
           <div class="w-file-upload-error-msg">Upload failed. Max size for files is 10 MB.</div>
         </div>`;
-  
+
       fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
       const newInput = newUploadDiv.querySelector('.w-file-upload-input');
       if (newInput) {
@@ -1205,10 +1198,6 @@ function onCancelDelete() {
 /**
  * Initialize application
  */
-
-/**
- * Initialize application
- */
 async function initializeApp() {
   try {
     console.log("Starter initialisering...");
@@ -1255,7 +1244,6 @@ async function initializeApp() {
     console.error("Feil under initialisering:", error);
   }
 }
-
 
 // Kjør initializeApp når dokumentet er klart
 document.addEventListener('DOMContentLoaded', () => {
