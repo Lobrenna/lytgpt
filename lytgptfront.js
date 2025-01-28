@@ -97,6 +97,7 @@ function showSpinner(buttonElement, message) {
   buttonElement.innerHTML = `<span class="spinner"></span>${message}`;
   buttonElement.disabled = true;
 }
+
 function hideSpinner(buttonElement) {
   if (!buttonElement) return;
   buttonElement.innerHTML = buttonElement.dataset.originalText || '';
@@ -117,55 +118,55 @@ async function populateLongSelector() {
   if (!longSelector) return;
 
   try {
-      // Henter hele ordboka (alle tilgjengelige modeller) ved å kalle endepunktet uten query-parameter
-      const response = await fetch(`${API_BASE_URL}/long-context-options`);
-      if (!response.ok) {
-          throw new Error(`Feil: HTTP ${response.status}`);
-      }
+    // Henter hele ordboka (alle tilgjengelige modeller) ved å kalle endepunktet uten query-parameter
+    const response = await fetch(`${API_BASE_URL}/long-context-options`);
+    if (!response.ok) {
+      throw new Error(`Feil: HTTP ${response.status}`);
+    }
 
-      const options = await response.json();
-      console.log("populateLongSelector: Alternativer hentet:", options);
+    const options = await response.json();
+    console.log("populateLongSelector: Alternativer hentet:", options);
 
-      // Tøm <select>-elementet før vi legger til nye valg
-      longSelector.innerHTML = "";
+    // Tøm <select>-elementet før vi legger til nye valg
+    longSelector.innerHTML = "";
 
-      // Legg til et tomt valg først
-      const emptyOption = document.createElement("option");
-      emptyOption.value = "";
-      emptyOption.textContent = "-- Ingen valgt --";
-      longSelector.appendChild(emptyOption);
+    // Legg til et tomt valg først
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = "-- Ingen valgt --";
+    longSelector.appendChild(emptyOption);
 
-      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
-      for (const key in options) {
-          if (options.hasOwnProperty(key)) {
-              const option = document.createElement("option");
-              option.value = key;         // "Claude docs"
-              option.textContent = key;   // vises i UI
-              longSelector.appendChild(option);
+    // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
+    for (const key in options) {
+      if (options.hasOwnProperty(key)) {
+        const option = document.createElement("option");
+        option.value = key;         // "Claude docs"
+        option.textContent = key;   // vises i UI
+        longSelector.appendChild(option);
 
-              // Bestem filendelsen
-              let fileExtension = "";
-              if (Array.isArray(options[key]) && options[key].length > 0) {
-                  const firstFilePath = options[key][0];
-                  const lastDotIndex = firstFilePath.lastIndexOf('.');
-                  if (lastDotIndex !== -1) {
-                      fileExtension = firstFilePath.substring(lastDotIndex);
-                  }
-              } else if (typeof options[key] === 'string') {
-                  // Hvis backend av en eller annen grunn returnerer en streng
-                  const lastDotIndex = options[key].lastIndexOf('.');
-                  if (lastDotIndex !== -1) {
-                      fileExtension = options[key].substring(lastDotIndex);
-                  }
-              }
-
-              // Lagre filendelsen i global variabel
-              longContextExtensions[key] = fileExtension;
+        // Bestem filendelsen
+        let fileExtension = "";
+        if (Array.isArray(options[key]) && options[key].length > 0) {
+          const firstFilePath = options[key][0];
+          const lastDotIndex = firstFilePath.lastIndexOf('.');
+          if (lastDotIndex !== -1) {
+            fileExtension = firstFilePath.substring(lastDotIndex);
           }
+        } else if (typeof options[key] === 'string') {
+          // Hvis backend av en eller annen grunn returnerer en streng
+          const lastDotIndex = options[key].lastIndexOf('.');
+          if (lastDotIndex !== -1) {
+            fileExtension = options[key].substring(lastDotIndex);
+          }
+        }
+
+        // Lagre filendelsen i global variabel
+        longContextExtensions[key] = fileExtension;
       }
-      console.log("populateLongSelector: Long context extensions lagret:", longContextExtensions);
+    }
+    console.log("populateLongSelector: Long context extensions lagret:", longContextExtensions);
   } catch (error) {
-      console.error("Feil ved henting av long-context alternativer:", error);
+    console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
 
@@ -851,8 +852,6 @@ async function fetchModels() {
   }
 }
 
-let isInitialized = false;
-
 /**
  * fetchChats
  * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
@@ -909,6 +908,11 @@ async function fetchChats(autoLoad = true) {
  * loadChat
  */
 async function loadChat(chatId) {
+  if (!chatId) {
+    console.error("loadChat: chatId er undefined eller null.");
+    return;
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
@@ -1033,7 +1037,7 @@ function handleFileSelection(event) {
         <div class="w-file-upload-error w-hidden">
           <div class="w-file-upload-error-msg">Upload failed. Max size for files is 10 MB.</div>
         </div>`;
-
+  
       fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
       const newInput = newUploadDiv.querySelector('.w-file-upload-input');
       if (newInput) {
