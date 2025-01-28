@@ -293,7 +293,7 @@ async function sendMessage(chatId, message) {
           .then(response => response.json())
           .then(data => {
             console.log("sendMessage: Response from backend:", data);
-            if (data.includes(selectedLongContext)) {
+            if (Object.keys(data).includes(selectedLongContext)) {
               // Send til /rag-endepunktet
               url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
               formData.append('long_context_selection', selectedLongContext);
