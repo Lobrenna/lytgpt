@@ -426,11 +426,13 @@ async function onSendMessage() {
 
         appendMessageToChat('assistant', renderMarkdown(data.response));
 
-        // Oppdater chat-id hvis backend returnerer en ny
-        if (data.new_chat_id) {
-            currentChatId = data.new_chat_id;
-            console.log("Oppdatert currentChatId til:", currentChatId);
-            await updateChatSelector(currentChatId);
+
+
+        if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+          // Evt. hvis backend faktisk returnerer en ny fil-ID (ny fil)
+          currentChatId = data.new_chat_id;
+          console.log("Oppdatert currentChatId til:", currentChatId);
+          await updateChatSelector(currentChatId);
         }
 
     } catch (error) {
@@ -845,16 +847,23 @@ async function fetchChats(autoLoad = true) {
     if (chatSelector) {
       chatSelector.innerHTML = '';
       chats.forEach(chat => {
+        // chat kan være enten en streng, eller et objekt med .title (avhengig av backend)
+        const chatId = typeof chat === 'string' ? chat : chat.id || chat;
         const chatTitle = typeof chat === 'string' ? chat : chat.title;
+
         const option = document.createElement('option');
-        option.value = chatTitle;
+        // Alltid bruk filnavn/ID for .value, men display= title
+        option.value = chatId;
         option.textContent = chatTitle;
         chatSelector.appendChild(option);
       });
-      const chatExists = chats.some(chat => {
-        const chatTitle = typeof chat === 'string' ? chat : chat.title;
-        return chatTitle === currentChatId;
+
+      // Sjekk om nåværende chat fins i lista
+      const chatExists = chats.some(ch => {
+        const cid = typeof ch === 'string' ? ch : ch.id || ch;
+        return cid === currentChatId;
       });
+
       if (currentChatId && chatExists) {
         chatSelector.value = currentChatId;
         if (autoLoad) {
@@ -875,7 +884,7 @@ async function loadChat(chatId) {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
-      currentChatId = chat.title;
+      currentChatId = chatId;
       selectedModel = chat.model;
       if (modelSelector) {
         modelSelector.value = chat.model;
