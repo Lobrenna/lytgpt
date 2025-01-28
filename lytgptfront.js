@@ -24,7 +24,7 @@ const fileList = document.getElementById('file-list'); // For å vise opplastede
 const longSelector = document.getElementById('long-selector');
 
 // Kopling mellom chat-navn og chat-ID
-const titleToChatIdMap = {}; // Global mapping: title -> chatId
+let titleToChatIdMap = {}; // Global mapping: title -> chatId
 
 
 // State
@@ -282,6 +282,41 @@ async function createNewChat() {
   }
 }
 
+async function sendMessage(chatId, message) {
+  if (!chatId) {
+    throw new Error('Chat ID er påkrevd');
+  }
+
+  console.log("sendMessage: Starting with chatId:", chatId);
+
+  // Klargjør endepunkt-URL
+  const encodedChatId = encodeURIComponent(chatId);
+  let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`; // Default URL
+
+  // Hent valgt long-context
+  const longSelector = document.getElementById('long-selector');
+  let selectedLongContext = null;
+  let fileExtension = null;
+
+  if (longSelector && longSelector.value) {
+    selectedLongContext = longSelector.value;
+    console.log("sendMessage: Valgt long context:", selectedLongContext);
+
+    // Slå opp filendelsen fra den globale variabelen
+    fileExtension = longContextExtensions[selectedLongContext];
+    console.log("sendMessage: Filendelse for valgt context:", fileExtension);
+
+    if (fileExtension === ".pkl") {
+      // Hvis vi får .pkl, send til /rag
+      console.log("Filendelse er .pkl. Sender til /rag");
+      url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+    } else {
+      // For alle andre filendelser, send til /messages
+      console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
+      url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+    }
+  }
+
   // Opprett FormData
   const formData = new FormData();
   formData.append('message', message);
@@ -289,7 +324,7 @@ async function createNewChat() {
 
   // Append long_context_selection hvis valgt
   if (selectedLongContext) {
-      formData.append("long_context_selection", selectedLongContext);
+    formData.append("long_context_selection", selectedLongContext);
   }
 
   // Håndter filopplastinger
@@ -297,127 +332,124 @@ async function createNewChat() {
   let hasFiles = false;
 
   fileInputs.forEach((input, index) => {
-      // Sjekk for backend-filer
-      const backendFile = input.getAttribute('data-backend-file');
-      if (backendFile) {
-          formData.append('backend_files', backendFile);
-          hasFiles = true;
-          console.log(`Adding backend file: ${backendFile}`);
-      }
-      // Sjekk for lokale filer
-      if (input.files && input.files[0]) {
-          formData.append('files', input.files[0]);
-          hasFiles = true;
-          console.log(`Adding local file: ${input.files[0].name}`);
-      }
+    // Sjekk for backend-filer
+    const backendFile = input.getAttribute('data-backend-file');
+    if (backendFile) {
+      formData.append('backend_files', backendFile);
+      hasFiles = true;
+      console.log(`Adding backend file: ${backendFile}`);
+    }
+    // Sjekk for lokale filer
+    if (input.files && input.files[0]) {
+      formData.append('files', input.files[0]);
+      hasFiles = true;
+      console.log(`Adding local file: ${input.files[0].name}`);
+    }
   });
 
   console.log("sendMessage: FormData contents:");
   for (let pair of formData.entries()) {
-      console.log(pair[0], pair[1]);
+    console.log(pair[0], pair[1]);
   }
 
   try {
-      console.log("sendMessage: Sending request to:", url);
-      const response = await fetch(url, {
-          method: 'POST',
-          body: formData,
-      });
+    console.log("sendMessage: Sending request to:", url);
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
 
-      if (!response.ok) {
-          const errorData = await response.json();
-          console.error("sendMessage: Server error:", errorData);
-          throw new Error(
-              `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-              JSON.stringify(errorData)
-          );
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("sendMessage: Server error:", errorData);
+      throw new Error(
+        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+        JSON.stringify(errorData)
+      );
+    }
 
-      const responseData = await response.json();
-      console.log("sendMessage: Server response:", responseData);
-      return responseData;
+    const responseData = await response.json();
+    console.log("sendMessage: Server response:", responseData);
+    return responseData;
   } catch (error) {
-      console.error("sendMessage: Error sending message:", error);
-      throw error;
+    console.error("sendMessage: Error sending message:", error);
+    throw error;
   }
 }
 
-
 // Separate function for updating UI elements
 function updateUIElements(data) {
-    if (!data) return;
-    
-    try {
-        if (data.selected_model && typeof updateModelInfo === 'function') {
-            updateModelInfo(data.selected_model);
-        }
-        if (data.context_length && typeof updateContextLength === 'function') {
-            updateContextLength(data.context_length);
-        }
-        if (data.estimated_tokens && typeof updateEstimatedTokens === 'function') {
-            updateEstimatedTokens(data.estimated_tokens);
-        }
-    } catch (error) {
-        console.error('Error updating UI elements:', error);
+  if (!data) return;
+  
+  try {
+    if (data.selected_model && typeof updateModelInfo === 'function') {
+      updateModelInfo(data.selected_model);
     }
+    if (data.context_length && typeof updateContextLength === 'function') {
+      updateContextLength(data.context_length);
+    }
+    if (data.estimated_tokens && typeof updateEstimatedTokens === 'function') {
+      updateEstimatedTokens(data.estimated_tokens);
+    }
+  } catch (error) {
+    console.error('Error updating UI elements:', error);
+  }
 }
 
 // Update the onSendMessage function
 async function onSendMessage() {
-    if (!chatInput || !chatInput.value.trim()) return;
+  if (!chatInput || !chatInput.value.trim()) return;
 
-    const message = chatInput.value.trim();
+  const message = chatInput.value.trim();
 
-    // 1. Vis brukerens melding i chatvinduet
-    appendMessageToChat('user', renderMarkdown(message));
-    chatInput.value = '';
+  // 1. Vis brukerens melding i chatvinduet
+  appendMessageToChat('user', renderMarkdown(message));
+  chatInput.value = '';
 
-    // Midlertidig melding
-    const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-    showSpinner(sendButton, 'Sender...');
+  // Midlertidig melding
+  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+  showSpinner(sendButton, 'Sender...');
 
-    try {
-        if (!currentChatId) {
-            throw new Error('Ingen aktiv chat');
-        }
-
-        let data;
-        console.log("Sender melding til backend...");
-
-        data = await sendMessage(currentChatId, message);
-        console.log("Mottatt data fra server:", data);
-
-        // Fjern "Genererer svar..."
-        if (generatingMessage && generatingMessage.parentNode) {
-            generatingMessage.parentNode.removeChild(generatingMessage);
-        }
-
-        // Vis litt info
-        if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
-            const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
-            appendMessageToChat('system', modelInfo);
-        }
-
-        appendMessageToChat('assistant', renderMarkdown(data.response));
-
-
-
-        if (data.new_chat_id && data.new_chat_id !== currentChatId) {
-          // Evt. hvis backend faktisk returnerer en ny fil-ID (ny fil)
-          currentChatId = data.new_chat_id;
-          console.log("Oppdatert currentChatId til:", currentChatId);
-          await updateChatSelector(currentChatId);
-        }
-
-    } catch (error) {
-        console.error('Feil ved sending av melding:', error);
-        if (generatingMessage && generatingMessage.parentNode) {
-            generatingMessage.parentNode.removeChild(generatingMessage);
-        }
-        appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
-    } finally {
-        hideSpinner(sendButton);
+  try {
+    if (!currentChatId) {
+      throw new Error('Ingen aktiv chat');
     }
+
+    let data;
+    console.log("Sender melding til backend...");
+
+    data = await sendMessage(currentChatId, message);
+    console.log("Mottatt data fra server:", data);
+
+    // Fjern "Genererer svar..."
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
+    }
+
+    // Vis litt info
+    if (data.selected_model && data.context_length !== undefined && data.estimated_tokens !== undefined) {
+      const modelInfo = `Modell: ${data.selected_model} | Kontekst (antall tokens): ${data.context_length} | Est. tokens: ${data.estimated_tokens}`;
+      appendMessageToChat('system', modelInfo);
+    }
+
+    appendMessageToChat('assistant', renderMarkdown(data.response));
+
+    if (data.new_chat_id && data.new_chat_id !== currentChatId) {
+      // Evt. hvis backend faktisk returnerer en ny fil-ID (ny fil)
+      currentChatId = data.new_chat_id;
+      console.log("Oppdatert currentChatId til:", currentChatId);
+      await updateChatSelector(currentChatId);
+    }
+
+  } catch (error) {
+    console.error('Feil ved sending av melding:', error);
+    if (generatingMessage && generatingMessage.parentNode) {
+      generatingMessage.parentNode.removeChild(generatingMessage);
+    }
+    appendMessageToChat('error', `Det oppstod en feil ved sending av meldingen: ${error.message}`);
+  } finally {
+    hideSpinner(sendButton);
+  }
 }
 
 /**
@@ -529,6 +561,7 @@ async function onUploadFiles() {
   }
 }
 
+
 /**
  * deleteChat
  */
@@ -588,16 +621,19 @@ async function onChatChange(e) {
 
   if (!chatId) {
     console.warn("Fant ikke chatId for valgt title:", chosenTitle);
-    currentChatId = await createNewChat();
-    chatSelector.value = Object.keys(titleToChatIdMap).find(
-      title => titleToChatIdMap[title] === currentChatId
-    );
-    appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
+    try {
+      currentChatId = await createNewChat();
+      chatSelector.value = Object.keys(titleToChatIdMap).find(
+        title => titleToChatIdMap[title] === currentChatId
+      );
+      appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
+    } catch (error) {
+      console.error("Feil ved opprettelse av ny chat:", error);
+    }
   } else {
     await loadChat(chatId); // Bruk riktig chatId for backend-kall
   }
 }
-
 
 function showError(message) {
   const errorElement = document.querySelector('.w-form-fail');
@@ -723,9 +759,6 @@ async function onSetUrl() {
   }
 }
 
-/**
- * fetchModels
- */
 async function fetchModels() {
   try {
     const response = await fetch(`${API_BASE_URL}/models`);
@@ -747,6 +780,7 @@ async function fetchModels() {
     if (models.length > 0) {
       selectedModel = models[0];
       modelSelector.value = selectedModel;
+      console.log('Standardmodell satt til:', models[0]);
     }
   } catch (error) {
     console.error('Feil ved henting av modeller:', error);
@@ -754,11 +788,6 @@ async function fetchModels() {
 }
 
 let isInitialized = false;
-
-/**
- * DOMContentLoaded
- */
-
 
 /**
  * fetchChats
@@ -940,6 +969,7 @@ function handleFileSelection(event) {
   }
 }
 
+
 function updateFileList(files) {
   if (!fileList) return;
   fileList.innerHTML = '';
@@ -1009,6 +1039,7 @@ function setupEventListeners() {
     });
   }
 }
+
 
 /**
  * updateChatSelector
