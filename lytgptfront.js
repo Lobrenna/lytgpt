@@ -260,9 +260,17 @@ async function createNewChat() {
     });
 
     if (!response.ok) {
-      console.error("createNewChat: Feil respons:", response.status, response.statusText);
+      let errorMsg = `createNewChat: Feil respons: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMsg += ` - ${JSON.stringify(errorData)}`;
+      } catch (e) {
+        // Responsen inneholder ikke JSON
+      }
+      console.error(errorMsg);
       throw new Error('Feil ved opprettelse av chat');
     }
+
     const data = await response.json();
     const chatId = data.id;
     const chatTitle = data.title || chatId; // Bruk chatId som fallback
@@ -278,9 +286,11 @@ async function createNewChat() {
     return chatId;
   } catch (error) {
     console.error('createNewChat: Feil:', error);
+    alert(`Feil ved opprettelse av chat: ${error.message}`);
     throw error;
   }
 }
+
 
 async function sendMessage(chatId, message) {
   if (!chatId) {
@@ -360,11 +370,16 @@ async function sendMessage(chatId, message) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("sendMessage: Server error:", errorData);
+      let errorMsg = `sendMessage: Feil respons: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMsg += ` - ${JSON.stringify(errorData)}`;
+      } catch (e) {
+        // Responsen inneholder ikke JSON
+      }
+      console.error(errorMsg);
       throw new Error(
-        `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-        JSON.stringify(errorData)
+        `Nettverksfeil: ${response.status} ${response.statusText}`
       );
     }
 
@@ -376,6 +391,7 @@ async function sendMessage(chatId, message) {
     throw error;
   }
 }
+
 
 // Separate function for updating UI elements
 function updateUIElements(data) {
@@ -758,7 +774,6 @@ async function onSetUrl() {
     hideSpinner(setUrlButton);
   }
 }
-
 async function fetchModels() {
   try {
     const response = await fetch(`${API_BASE_URL}/models`);
@@ -766,6 +781,8 @@ async function fetchModels() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const models = await response.json();
+    console.log('Hentede modeller:', models); // Logg modellene som hentes
+
     if (!modelSelector) {
       console.error("modelSelector er ikke definert");
       return;
@@ -780,12 +797,15 @@ async function fetchModels() {
     if (models.length > 0) {
       selectedModel = models[0];
       modelSelector.value = selectedModel;
-      console.log('Standardmodell satt til:', models[0]);
+      console.log('Standardmodell satt til:', selectedModel);
+    } else {
+      console.error('Ingen modeller tilgjengelig.');
     }
   } catch (error) {
     console.error('Feil ved henting av modeller:', error);
   }
 }
+
 
 let isInitialized = false;
 
@@ -795,7 +815,18 @@ let isInitialized = false;
 async function fetchChats(autoLoad = true) {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
-    if (!response.ok) throw new Error('Feil ved henting av chats');
+    if (!response.ok) {
+      let errorMsg = `fetchChats: Feil respons: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMsg += ` - ${JSON.stringify(errorData)}`;
+      } catch (e) {
+        // Responsen inneholder ikke JSON
+      }
+      console.error(errorMsg);
+      throw new Error('Feil ved henting av chats');
+    }
+
     const chats = await response.json();
 
     if (chatSelector) {
@@ -804,7 +835,7 @@ async function fetchChats(autoLoad = true) {
 
       chats.forEach(chat => {
         const chatId = typeof chat === 'string' ? chat : chat.id || chat;
-        const chatTitle = chat.title || chatId; // Bruk chatId som fallback for manglende tittel
+        const chatTitle = chat.title || chatId; // Bruk chatId som fallback
 
         // Oppdater mappingen
         titleToChatIdMap[chatTitle] = chatId;
@@ -838,6 +869,7 @@ async function fetchChats(autoLoad = true) {
     console.error('fetchChats: Feil:', error);
   }
 }
+
 
 
 /**
