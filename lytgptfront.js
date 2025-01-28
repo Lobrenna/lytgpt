@@ -288,12 +288,19 @@ async function sendMessage(chatId, message) {
         const selectedLongContext = longSelector.value;
         console.log("sendMessage: Selected long context:", selectedLongContext);
 
-        if (['OFV RAG', 'LOB RAG', 'Google Reviews', 'NHI RAG medisin', 'NHI RAG modell'].includes(selectedLongContext)) {
-            url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-            formData.append('long_context_selection', selectedLongContext);
-        } else {
-            formData.append('long_context_selection', selectedLongContext);
-        }
+        // Hent long_context_options fra backend
+        fetch(`${API_BASE_URL}/long-context-options`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.includes(selectedLongContext)) {
+              // Send til /rag-endepunktet
+              url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+              formData.append('long_context_selection', selectedLongContext);
+            } else {
+              // Send til vanlig håndtering
+              formData.append('long_context_selection', selectedLongContext);
+            }
+          });
     }
 
     console.log("sendMessage: FormData contents:");
