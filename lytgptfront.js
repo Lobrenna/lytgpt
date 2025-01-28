@@ -109,7 +109,6 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) return;
@@ -133,7 +132,7 @@ async function populateLongSelector() {
       emptyOption.textContent = "-- Ingen valgt --";
       longSelector.appendChild(emptyOption);
 
-      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ".txt" eller ".pkl"
+      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
       for (const key in options) {
           if (options.hasOwnProperty(key)) {
               const option = document.createElement("option");
@@ -141,8 +140,24 @@ async function populateLongSelector() {
               option.textContent = key;   // vises i UI
               longSelector.appendChild(option);
 
+              // Bestem filendelsen
+              let fileExtension = "";
+              if (Array.isArray(options[key]) && options[key].length > 0) {
+                  const firstFilePath = options[key][0];
+                  const lastDotIndex = firstFilePath.lastIndexOf('.');
+                  if (lastDotIndex !== -1) {
+                      fileExtension = firstFilePath.substring(lastDotIndex);
+                  }
+              } else if (typeof options[key] === 'string') {
+                  // Hvis backend av en eller annen grunn returnerer en streng
+                  const lastDotIndex = options[key].lastIndexOf('.');
+                  if (lastDotIndex !== -1) {
+                      fileExtension = options[key].substring(lastDotIndex);
+                  }
+              }
+
               // Lagre filendelsen i global variabel
-              longContextExtensions[key] = options[key];
+              longContextExtensions[key] = fileExtension;
           }
       }
       console.log("populateLongSelector: Long context extensions lagret:", longContextExtensions);
@@ -150,7 +165,6 @@ async function populateLongSelector() {
       console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
-
 
 
 
@@ -259,7 +273,6 @@ async function createNewChat() {
     throw error;
   }
 }
-
 async function sendMessage(chatId, message) {
   if (!chatId) {
       throw new Error('Chat ID er påkrevd');
