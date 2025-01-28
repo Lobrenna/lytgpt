@@ -26,7 +26,6 @@ const longSelector = document.getElementById('long-selector');
 // Kopling mellom chat-navn og chat-ID
 let titleToChatIdMap = {}; // Global mapping: title -> chatId
 
-
 // State
 let currentChatId = null;
 let selectedModel = null;
@@ -34,7 +33,6 @@ let isScraping = false; // Ny tilstand for å forhindre multiple scraping
 
 // For å lagre globalt type long-context vi velger
 let longContextExtensions = {};
-
 
 // Konfigurer marked.js for å integrere med Prism.js
 const renderer = new marked.Renderer();
@@ -77,7 +75,7 @@ function renderMarkdown(markdownText) {
     console.warn('Invalid markdown input:', markdownText);
     return '';
   }
-  
+
   let html = marked.parse(markdownText);
   html = html.replace(/\n\s*\n/g, '\n');
   html = html.replace(/<p>(\s*<[uo]l>)/g, '$1');
@@ -113,6 +111,7 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) return;
@@ -169,9 +168,6 @@ async function populateLongSelector() {
       console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
-
-
-
 
 /**
  * appendMessageToChat
@@ -275,13 +271,18 @@ async function createNewChat() {
     const chatId = data.id;
     const chatTitle = data.title || chatId; // Bruk chatId som fallback
 
-    // Oppdater dropdown og mapping
+    // Oppdater mappingen
     titleToChatIdMap[chatTitle] = chatId;
 
+    // Oppdater dropdown
     const option = document.createElement('option');
-    option.value = chatTitle;
-    option.textContent = chatTitle;
+    option.value = chatTitle; // Bruk title som verdi i dropdown
+    option.textContent = chatTitle; // Vis title i dropdown
     chatSelector.appendChild(option);
+
+    // Sett valgt chat til den nye chatten
+    chatSelector.value = chatTitle;
+    await loadChat(chatId);
 
     return chatId;
   } catch (error) {
@@ -291,7 +292,9 @@ async function createNewChat() {
   }
 }
 
-
+/**
+ * sendMessage
+ */
 async function sendMessage(chatId, message) {
   if (!chatId) {
     throw new Error('Chat ID er påkrevd');
@@ -392,7 +395,6 @@ async function sendMessage(chatId, message) {
   }
 }
 
-
 // Separate function for updating UI elements
 function updateUIElements(data) {
   if (!data) return;
@@ -412,7 +414,9 @@ function updateUIElements(data) {
   }
 }
 
-// Update the onSendMessage function
+/**
+ * onSendMessage
+ */
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
@@ -450,11 +454,20 @@ async function onSendMessage() {
 
     appendMessageToChat('assistant', renderMarkdown(data.response));
 
-    if (data.new_chat_id && data.new_chat_id !== currentChatId) {
-      // Evt. hvis backend faktisk returnerer en ny fil-ID (ny fil)
-      currentChatId = data.new_chat_id;
-      console.log("Oppdatert currentChatId til:", currentChatId);
-      await updateChatSelector(currentChatId);
+    // **Oppdater `titleToChatIdMap` hvis tittelen har endret seg**
+    // Anta at backend returnerer den oppdaterte tittelen etter renaming
+    if (data.title && data.title !== getCurrentChatTitle()) {
+      const oldTitle = getCurrentChatTitle();
+      const newTitle = data.title;
+
+      // Oppdater mappingen
+      delete titleToChatIdMap[oldTitle];
+      titleToChatIdMap[newTitle] = currentChatId;
+
+      // Oppdater chat-selektoren
+      updateChatSelectorOption(oldTitle, newTitle);
+
+      console.log(`Chat ${currentChatId} omdøpt til: ${newTitle}`);
     }
 
   } catch (error) {
@@ -469,27 +482,41 @@ async function onSendMessage() {
 }
 
 /**
+ * getCurrentChatTitle
+ * Hjelpefunksjon for å hente den nåværende chat-tittelen
+ */
+function getCurrentChatTitle() {
+  if (!chatSelector) return null;
+  return chatSelector.value;
+}
+
+/**
+ * updateChatSelectorOption
+ * Hjelpefunksjon for å oppdatere en eksisterende option i chat-selektoren
+ */
+function updateChatSelectorOption(oldTitle, newTitle) {
+  if (!chatSelector) return;
+  const options = chatSelector.options;
+  for (let i = 0; i < options.length; i++) {
+    if (options[i].value === oldTitle) {
+      options[i].value = newTitle;
+      options[i].textContent = newTitle;
+      break;
+    }
+  }
+}
+
+/**
  * onNewChat
  */
-
 async function onNewChat() {
   try {
     showSpinner(newChatButton, 'Oppretter ny chat...');
     const chatId = await createNewChat();
     currentChatId = chatId;
 
-    // Hent oppdatert liste over chats
-    await fetchChats();
-
-    // Sett dropdown til ny chat
-    if (chatSelector) {
-      const newChatTitle = Object.keys(titleToChatIdMap).find(
-        title => titleToChatIdMap[title] === currentChatId
-      );
-      chatSelector.value = newChatTitle || "new";
-      await loadChat(currentChatId);
-    }
-
+    // Sett valgt chat til den nye chatten (håndteres i createNewChat)
+    
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
@@ -501,7 +528,6 @@ async function onNewChat() {
     hideSpinner(newChatButton);
   }
 }
-
 
 function initializeModelSelector() {
   if (modelSelector && modelSelector.options.length > 0) {
@@ -543,6 +569,12 @@ async function onUploadFiles() {
       formData.append(`file${index + 1}`, input.files[0]);
       hasFiles = true;
     }
+    // Backend-filer håndteres via 'data-backend-file' attributt
+    const backendFile = input.getAttribute('data-backend-file');
+    if (backendFile) {
+      formData.append(`backend_file${index + 1}`, backendFile);
+      hasFiles = true;
+    }
   });
 
   if (!hasFiles) {
@@ -569,6 +601,10 @@ async function onUploadFiles() {
       input.value = '';
       input.removeAttribute('data-backend-file');
     });
+
+    // Oppdater fillisten hvis du har en visuell liste
+    updateFileList([]);
+
   } catch (error) {
     console.error("Feil ved opplasting av filer:", error);
     alert("Feil ved opplasting av filer.");
@@ -577,19 +613,11 @@ async function onUploadFiles() {
   }
 }
 
-
 /**
  * deleteChat
  */
 async function deleteChat(chatId) {
   try {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    const chats = await response.json();
-    const nextChat = chats.find(chat => {
-      const chatTitle = typeof chat === 'string' ? chat : chat.title;
-      return chatTitle !== chatId;
-    });
-
     const deleteResponse = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`, {
       method: 'DELETE'
     });
@@ -597,16 +625,22 @@ async function deleteChat(chatId) {
       throw new Error('Feil ved sletting av chat');
     }
 
-    if (nextChat) {
-      currentChatId = typeof nextChat === 'string' ? nextChat : nextChat.title;
-    } else {
-      currentChatId = await createNewChat();
+    // Fjern fra mappingen
+    const chatTitle = Object.keys(titleToChatIdMap).find(title => titleToChatIdMap[title] === chatId);
+    if (chatTitle) {
+      delete titleToChatIdMap[chatTitle];
     }
-    
-    await fetchChats();
-    if (chatSelector) {
-      chatSelector.value = currentChatId;
+
+    // Oppdater dropdown og velg en annen chat
+    await fetchChats(false);
+
+    // Hvis det finnes en ny valgt chat, last den
+    if (currentChatId) {
       await loadChat(currentChatId);
+    } else {
+      // Opprett en ny chat hvis ingen eksisterer
+      currentChatId = await createNewChat();
+      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     }
   } catch (error) {
     console.error("deleteChat: Feil:", error);
@@ -631,6 +665,7 @@ function onModelChange(e) {
   selectedModel = e.target.value;
   console.log('Valgt modell:', selectedModel);
 }
+
 async function onChatChange(e) {
   const chosenTitle = e.target.value;
   const chatId = titleToChatIdMap[chosenTitle]; // Slå opp chatId fra title
@@ -774,6 +809,7 @@ async function onSetUrl() {
     hideSpinner(setUrlButton);
   }
 }
+
 async function fetchModels() {
   try {
     const response = await fetch(`${API_BASE_URL}/models`);
@@ -805,7 +841,6 @@ async function fetchModels() {
     console.error('Feil ved henting av modeller:', error);
   }
 }
-
 
 let isInitialized = false;
 
@@ -850,9 +885,10 @@ async function fetchChats(autoLoad = true) {
       // Sjekk om nåværende chat finnes i lista
       const chatExists = Object.values(titleToChatIdMap).includes(currentChatId);
       if (currentChatId && chatExists) {
-        chatSelector.value = Object.keys(titleToChatIdMap).find(
+        const currentChatTitle = Object.keys(titleToChatIdMap).find(
           title => titleToChatIdMap[title] === currentChatId
         );
+        chatSelector.value = currentChatTitle;
         if (autoLoad) {
           await loadChat(currentChatId);
         }
@@ -860,17 +896,13 @@ async function fetchChats(autoLoad = true) {
         // Opprett en ny chat hvis den nåværende ikke finnes
         currentChatId = await createNewChat();
         console.log("Opprettet ny chat da valgt chat ikke fantes:", currentChatId);
-        chatSelector.value = Object.keys(titleToChatIdMap).find(
-          title => titleToChatIdMap[title] === currentChatId
-        );
+        // chatSelector.value settes i createNewChat
       }
     }
   } catch (error) {
     console.error('fetchChats: Feil:', error);
   }
 }
-
-
 
 /**
  * loadChat
@@ -899,6 +931,20 @@ async function loadChat(chatId) {
           addBackendFileUpload(filename);
         });
       }
+
+      // **Oppdater `titleToChatIdMap` hvis tittelen har endret seg**
+      // Dette er nødvendig hvis loadChat henter en chat med en ny tittel
+      const chatTitle = chat.title || chatId;
+      if (!Object.keys(titleToChatIdMap).includes(chatTitle)) {
+        titleToChatIdMap[chatTitle] = chatId;
+        const option = document.createElement('option');
+        option.value = chatTitle;
+        option.textContent = chatTitle;
+        chatSelector.appendChild(option);
+      }
+
+      // Sett valgt chat i dropdown
+      chatSelector.value = chatTitle;
     } else {
       console.warn("Chat ikke funnet, oppretter ny chat.");
       currentChatId = await createNewChat();
@@ -909,7 +955,6 @@ async function loadChat(chatId) {
     alert("Feil ved lasting av chat.");
   }
 }
-
 
 /**
  * handleFileSelection
@@ -985,7 +1030,7 @@ function handleFileSelection(event) {
         <div class="w-file-upload-error w-hidden">
           <div class="w-file-upload-error-msg">Upload failed. Max size for files is 10 MB.</div>
         </div>`;
-
+    
       fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
       const newInput = newUploadDiv.querySelector('.w-file-upload-input');
       if (newInput) {
@@ -1000,7 +1045,6 @@ function handleFileSelection(event) {
     }
   }
 }
-
 
 function updateFileList(files) {
   if (!fileList) return;
@@ -1072,15 +1116,19 @@ function setupEventListeners() {
   }
 }
 
-
 /**
  * updateChatSelector
  */
 async function updateChatSelector(newChatId) {
-  await fetchChats();
+  await fetchChats(false);
   if (chatSelector) {
-    chatSelector.value = newChatId;
-    await loadChat(newChatId);
+    const newChatTitle = Object.keys(titleToChatIdMap).find(
+      title => titleToChatIdMap[title] === newChatId
+    );
+    if (newChatTitle) {
+      chatSelector.value = newChatTitle;
+      await loadChat(newChatId);
+    }
   }
 }
 
