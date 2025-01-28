@@ -258,59 +258,29 @@ async function createNewChat() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: selectedModel })
     });
-    
+
     if (!response.ok) {
       console.error("createNewChat: Feil respons:", response.status, response.statusText);
       throw new Error('Feil ved opprettelse av chat');
     }
     const data = await response.json();
-    if (data.title) {
-      return data.title;
-    } else if (data.chat_id) {
-      return data.chat_id;
-    } else {
-      console.error("createNewChat: Mangler chat_id i responsen:", data);
-      throw new Error('Mangler chat_id i respons fra server');
-    }
+    const chatId = data.id;
+    const chatTitle = data.title || chatId; // Bruk chatId som fallback
+
+    // Oppdater dropdown og mapping
+    titleToChatIdMap[chatTitle] = chatId;
+
+    const option = document.createElement('option');
+    option.value = chatTitle;
+    option.textContent = chatTitle;
+    chatSelector.appendChild(option);
+
+    return chatId;
   } catch (error) {
     console.error('createNewChat: Feil:', error);
     throw error;
   }
 }
-async function sendMessage(chatId, message) {
-  if (!chatId) {
-      throw new Error('Chat ID er påkrevd');
-  }
-
-  console.log("sendMessage: Starting with chatId:", chatId);
-
-  // Klargjør endepunkt-URL
-  const encodedChatId = encodeURIComponent(chatId);
-  let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`; // Default URL
-
-  // Hent valgt long-context
-  const longSelector = document.getElementById('long-selector');
-  let selectedLongContext = null;
-  let fileExtension = null;
-
-  if (longSelector && longSelector.value) {
-      selectedLongContext = longSelector.value;
-      console.log("sendMessage: Valgt long context:", selectedLongContext);
-
-      // Slå opp filendelsen fra den globale variabelen
-      fileExtension = longContextExtensions[selectedLongContext];
-      console.log("sendMessage: Filendelse for valgt context:", fileExtension);
-
-      if (fileExtension === ".pkl") {
-          // Hvis vi får .pkl, send til /rag
-          console.log("Filendelse er .pkl. Sender til /rag");
-          url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-      } else {
-          // For alle andre filendelser, send til /messages
-          console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
-          url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-      }
-  }
 
   // Opprett FormData
   const formData = new FormData();
@@ -617,13 +587,12 @@ async function onChatChange(e) {
   const chatId = titleToChatIdMap[chosenTitle]; // Slå opp chatId fra title
 
   if (!chatId) {
-    console.error("Fant ikke chatId for valgt title:", chosenTitle);
-    return;
-  }
-
-  // Hvis "ny chat" er valgt
-  if (chosenTitle === "new") {
-    await onNewChat();
+    console.warn("Fant ikke chatId for valgt title:", chosenTitle);
+    currentChatId = await createNewChat();
+    chatSelector.value = Object.keys(titleToChatIdMap).find(
+      title => titleToChatIdMap[title] === currentChatId
+    );
+    appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
   } else {
     await loadChat(chatId); // Bruk riktig chatId for backend-kall
   }
@@ -792,16 +761,28 @@ let isInitialized = false;
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log("Starter initialisering...");
-    
-    // 1) Hent modeller
-    await fetchModels();
-    console.log("Modeller hentet");
 
-    // 2) Hent long-context valg
-    await populateLongSelector();
-    console.log("Long-context valg hentet");
+    // Valider essensielle DOM-elementer
+    if (!chatInput || !modelSelector || !chatSelector) {
+      console.error("Essensielle DOM-elementer mangler.");
+      return;
+    }
 
-    // Opprett ny chat om vi ikke har en
+    // 1) Hent modeller, long-context, og chats parallelt
+    const initTasks = [
+      fetchModels(),
+      populateLongSelector(),
+      fetchChats()
+    ];
+    const results = await Promise.allSettled(initTasks);
+
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`Oppgave ${index} feilet:`, result.reason);
+      }
+    });
+
+    // 2) Opprett ny chat hvis nødvendig
     if (!currentChatId) {
       try {
         currentChatId = await createNewChat();
@@ -811,18 +792,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // 3) Hent oversikt over chats
-    await fetchChats();
-    console.log("Chats hentet");
-
-    // 4) Sett opp event listeners
+    // 3) Sett opp event listeners
     setupEventListeners();
     console.log("Event listeners satt opp");
 
+    // 4) Oppdater input-stil
     if (chatInput) {
       chatInput.style.color = "#000";
     }
 
+    // 5) Sett opp fil-opplastinger
     const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
     initialFileInputs.forEach(input => {
       input.addEventListener('change', handleFileSelection);
@@ -833,6 +812,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Feil under initialisering:", error);
   }
 });
+
 
 /**
  * fetchChats
@@ -849,7 +829,7 @@ async function fetchChats(autoLoad = true) {
 
       chats.forEach(chat => {
         const chatId = typeof chat === 'string' ? chat : chat.id || chat;
-        const chatTitle = typeof chat === 'string' ? chat : chat.title;
+        const chatTitle = chat.title || chatId; // Bruk chatId som fallback for manglende tittel
 
         // Oppdater mappingen
         titleToChatIdMap[chatTitle] = chatId;
@@ -870,6 +850,13 @@ async function fetchChats(autoLoad = true) {
         if (autoLoad) {
           await loadChat(currentChatId);
         }
+      } else {
+        // Opprett en ny chat hvis den nåværende ikke finnes
+        currentChatId = await createNewChat();
+        console.log("Opprettet ny chat da valgt chat ikke fantes:", currentChatId);
+        chatSelector.value = Object.keys(titleToChatIdMap).find(
+          title => titleToChatIdMap[title] === currentChatId
+        );
       }
     }
   } catch (error) {
@@ -886,14 +873,12 @@ async function loadChat(chatId) {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
-
-      // Sett riktig chatId for backend-kall
       currentChatId = chatId;
 
-      // Vis chat.title i UI
-      const chatTitleEl = document.getElementById('chat-title'); // Lag en <div id="chat-title"> i HTML
+      // Oppdater tittel og vis meldinger
+      const chatTitleEl = document.getElementById('chat-title');
       if (chatTitleEl) {
-        chatTitleEl.textContent = chat.title; // Oppdater med tittelen
+        chatTitleEl.textContent = chat.title || chatId;
       }
 
       selectedModel = chat.model;
@@ -908,9 +893,12 @@ async function loadChat(chatId) {
         });
       }
     } else {
-      alert("Feil ved lasting av chat.");
+      console.warn("Chat ikke funnet, oppretter ny chat.");
+      currentChatId = await createNewChat();
+      appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
     }
   } catch (error) {
+    console.error("Feil ved lasting av chat:", error);
     alert("Feil ved lasting av chat.");
   }
 }
