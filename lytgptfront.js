@@ -284,16 +284,21 @@ async function sendMessage(chatId, message) {
         }
     });
 
-    if (longSelector && longSelector.value) {
-        const selectedLongContext = longSelector.value;
-        console.log("sendMessage: Selected long context:", selectedLongContext);
 
-        // Hent long_context_options fra backend
-        fetch(`${API_BASE_URL}/long-context-options`)
-          .then(response => response.json())
-          .then(data => {
-            console.log("sendMessage: Response from backend:", data);
-            if (Object.keys(data).includes(selectedLongContext)) {
+    if (longSelector && longSelector.value) {
+      const selectedLongContext = longSelector.value;
+      console.log("sendMessage: Selected long context:", selectedLongContext);
+  
+      // Hent long_context_options fra backend
+      fetch(`${API_BASE_URL}/long-context-options`)
+        .then(response => response.json())
+        .then(data => {
+          console.log("sendMessage: Response from backend:", data);
+          if (Object.keys(data).includes(selectedLongContext)) {
+            // Finn filnavnet i listen
+            const filename = data[selectedLongContext][0];
+            // Sjekk om filnavnet ender på .pkl
+            if (filename.endsWith('.pkl')) {
               // Send til /rag-endepunktet
               url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
               formData.append('long_context_selection', selectedLongContext);
@@ -301,11 +306,15 @@ async function sendMessage(chatId, message) {
               // Send til vanlig håndtering
               formData.append('long_context_selection', selectedLongContext);
             }
-
-            // Send til /messages-endepunktet
-            console.log("sendMessage: Sending to /messages-endpoint");
-            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-          });
+          } else {
+            // Send til vanlig håndtering
+            formData.append('long_context_selection', selectedLongContext);
+          }
+  
+          // Send til /messages-endepunktet
+          console.log("sendMessage: Sending to /messages-endpoint");
+          url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+        });
     }
 
     console.log("sendMessage: FormData contents:");
