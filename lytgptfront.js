@@ -23,6 +23,10 @@ const fileList = document.getElementById('file-list'); // For å vise opplastede
 // NB: Hent tak i long-selector
 const longSelector = document.getElementById('long-selector');
 
+// Kopling mellom chat-navn og chat-ID
+const titleToChatIdMap = {}; // Global mapping: title -> chatId
+
+
 // State
 let currentChatId = null;
 let selectedModel = null;
@@ -449,44 +453,29 @@ async function onSendMessage() {
 /**
  * onNewChat
  */
+
 async function onNewChat() {
   try {
     showSpinner(newChatButton, 'Oppretter ny chat...');
     const chatId = await createNewChat();
     currentChatId = chatId;
+
+    // Hent oppdatert liste over chats
     await fetchChats();
+
+    // Sett dropdown til ny chat
     if (chatSelector) {
-      chatSelector.value = currentChatId;
+      const newChatTitle = Object.keys(titleToChatIdMap).find(
+        title => titleToChatIdMap[title] === currentChatId
+      );
+      chatSelector.value = newChatTitle || "new";
       await loadChat(currentChatId);
     }
+
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
-
-    // Nullstill inputfelter mm.
-    const fileUploadDefault = document.querySelector('.w-file-upload-default');
-    if (fileUploadDefault) {
-      fileUploadDefault.style.display = 'block';
-    }
-    const fileUploadSuccess = document.querySelector('.w-file-upload-success');
-    if (fileUploadSuccess) {
-      fileUploadSuccess.style.display = 'none';
-    }
-    const fileInput = document.querySelector('.w-file-upload-input');
-    if (fileInput) {
-      fileInput.value = '';
-      fileInput.removeAttribute('data-backend-file');
-    }
-    const extraFileUpload = document.querySelector('.w-file-upload:nth-child(2)');
-    if (extraFileUpload) {
-      extraFileUpload.remove();
-    }
-    if (urlInput) {
-      urlInput.value = '';
-    }
-
     appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
-    console.log("Ny chat opprettet med ID:", currentChatId);
   } catch (error) {
     console.error("Feil ved opprettelse av ny chat:", error);
     alert("Feil ved opprettelse av ny chat.");
@@ -494,6 +483,7 @@ async function onNewChat() {
     hideSpinner(newChatButton);
   }
 }
+
 
 function initializeModelSelector() {
   if (modelSelector && modelSelector.options.length > 0) {
@@ -622,15 +612,23 @@ function onModelChange(e) {
   selectedModel = e.target.value;
   console.log('Valgt modell:', selectedModel);
 }
-
 async function onChatChange(e) {
-  const chosen = e.target.value;
-  if (chosen === "new") {
+  const chosenTitle = e.target.value;
+  const chatId = titleToChatIdMap[chosenTitle]; // Slå opp chatId fra title
+
+  if (!chatId) {
+    console.error("Fant ikke chatId for valgt title:", chosenTitle);
+    return;
+  }
+
+  // Hvis "ny chat" er valgt
+  if (chosenTitle === "new") {
     await onNewChat();
   } else {
-    await loadChat(chosen);
+    await loadChat(chatId); // Bruk riktig chatId for backend-kall
   }
 }
+
 
 function showError(message) {
   const errorElement = document.querySelector('.w-form-fail');
@@ -844,28 +842,31 @@ async function fetchChats(autoLoad = true) {
     const response = await fetch(`${API_BASE_URL}/chats`);
     if (!response.ok) throw new Error('Feil ved henting av chats');
     const chats = await response.json();
+
     if (chatSelector) {
       chatSelector.innerHTML = '';
+      titleToChatIdMap = {}; // Nullstill mappingen
+
       chats.forEach(chat => {
-        // chat kan være enten en streng, eller et objekt med .title (avhengig av backend)
         const chatId = typeof chat === 'string' ? chat : chat.id || chat;
         const chatTitle = typeof chat === 'string' ? chat : chat.title;
 
+        // Oppdater mappingen
+        titleToChatIdMap[chatTitle] = chatId;
+
+        // Legg til i dropdown
         const option = document.createElement('option');
-        // Alltid bruk filnavn/ID for .value, men display= title
-        option.value = chatId;
-        option.textContent = chatTitle;
+        option.value = chatTitle; // Bruk title som verdi i dropdown
+        option.textContent = chatTitle; // Vis title i dropdown
         chatSelector.appendChild(option);
       });
 
-      // Sjekk om nåværende chat fins i lista
-      const chatExists = chats.some(ch => {
-        const cid = typeof ch === 'string' ? ch : ch.id || ch;
-        return cid === currentChatId;
-      });
-
+      // Sjekk om nåværende chat finnes i lista
+      const chatExists = Object.values(titleToChatIdMap).includes(currentChatId);
       if (currentChatId && chatExists) {
-        chatSelector.value = currentChatId;
+        chatSelector.value = Object.keys(titleToChatIdMap).find(
+          title => titleToChatIdMap[title] === currentChatId
+        );
         if (autoLoad) {
           await loadChat(currentChatId);
         }
@@ -876,6 +877,7 @@ async function fetchChats(autoLoad = true) {
   }
 }
 
+
 /**
  * loadChat
  */
@@ -884,7 +886,16 @@ async function loadChat(chatId) {
     const response = await fetch(`${API_BASE_URL}/chats/${encodeURIComponent(chatId)}`);
     if (response.ok) {
       const chat = await response.json();
+
+      // Sett riktig chatId for backend-kall
       currentChatId = chatId;
+
+      // Vis chat.title i UI
+      const chatTitleEl = document.getElementById('chat-title'); // Lag en <div id="chat-title"> i HTML
+      if (chatTitleEl) {
+        chatTitleEl.textContent = chat.title; // Oppdater med tittelen
+      }
+
       selectedModel = chat.model;
       if (modelSelector) {
         modelSelector.value = chat.model;
@@ -903,6 +914,7 @@ async function loadChat(chatId) {
     alert("Feil ved lasting av chat.");
   }
 }
+
 
 /**
  * handleFileSelection
