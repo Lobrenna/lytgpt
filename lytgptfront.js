@@ -248,7 +248,17 @@ function clearChatMessages() {
 /**
  * createNewChat
  */
+/**
+ * createNewChat
+ */
 async function createNewChat() {
+
+  if (!selectedModel) {
+    console.error("createNewChat: selectedModel er ikke definert.");
+    alert("Ingen modell valgt. Vennligst velg en modell før du oppretter en ny chat.");
+    return;
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/chats`, {
       method: 'POST',
@@ -269,8 +279,15 @@ async function createNewChat() {
     }
 
     const data = await response.json();
-    const chatId = data.id;
-    const chatTitle = data.title || chatId; // Bruk chatId som fallback
+    console.log("createNewChat: Mottatt data fra backend:", data); // For debugging
+
+    const chatId = data.id || data.title; // Bruk title som fallback
+    const chatTitle = data.title || chatId; // Sikre at chatTitle alltid er definert
+
+    if (!chatId) {
+      console.error("createNewChat: `id` og `title` er ikke definert i backend-responsen.");
+      throw new Error('Backend returnerte ingen `id` eller `title` for den nye chatten.');
+    }
 
     // Oppdater mappingen
     titleToChatIdMap[chatTitle] = chatId;
@@ -295,6 +312,7 @@ async function createNewChat() {
     throw error;
   }
 }
+
 
 /**
  * sendMessage
@@ -671,10 +689,9 @@ function onModelChange(e) {
   selectedModel = e.target.value;
   console.log('Valgt modell:', selectedModel);
 }
-
 async function onChatChange(e) {
   const chosenTitle = e.target.value;
-  const chatId = titleToChatIdMap[chosenTitle]; // Slå opp chatId fra title
+  const chatId = titleToChatIdMap[chosenTitle] || chosenTitle; // Bruk title som fallback
 
   if (!chatId) {
     console.warn("Fant ikke chatId for valgt title:", chosenTitle);
@@ -683,7 +700,7 @@ async function onChatChange(e) {
       currentChatId = await createNewChat();
       chatSelector.value = Object.keys(titleToChatIdMap).find(
         title => titleToChatIdMap[title] === currentChatId
-      );
+      ) || currentChatId; // Sikre at verdien ikke er undefined
       appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
     } catch (error) {
       console.error("Feil ved opprettelse av ny chat:", error);
@@ -692,6 +709,7 @@ async function onChatChange(e) {
     await loadChat(chatId); // Bruk riktig chatId for backend-kall
   }
 }
+
 
 function showError(message) {
   const errorElement = document.querySelector('.w-form-fail');
@@ -857,6 +875,11 @@ async function fetchModels() {
  * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
  * @returns {Array} - Returnerer listen av chatter
  */
+/**
+ * fetchChats
+ * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
+ * @returns {Array} - Returnerer listen av chatter
+ */
 async function fetchChats(autoLoad = true) {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
@@ -879,8 +902,13 @@ async function fetchChats(autoLoad = true) {
       titleToChatIdMap = {}; // Nullstill mappingen
 
       chats.forEach(chat => {
-        const chatId = typeof chat === 'string' ? chat : chat.id || chat;
-        const chatTitle = chat.title || chatId; // Bruk chatId som fallback
+        const chatId = chat.id || chat.title; // Bruk title som fallback
+        const chatTitle = chat.title || chatId; // Sikre at chatTitle alltid er definert
+
+        if (!chatId) {
+          console.warn("fetchChats: `id` og `title` er ikke definert for en chat:", chat);
+          return; // Hopp over denne chatten
+        }
 
         // Oppdater mappingen
         titleToChatIdMap[chatTitle] = chatId;
@@ -904,6 +932,10 @@ async function fetchChats(autoLoad = true) {
   }
 }
 
+
+/**
+ * loadChat
+ */
 /**
  * loadChat
  */
@@ -1173,6 +1205,10 @@ function onCancelDelete() {
 /**
  * Initialize application
  */
+
+/**
+ * Initialize application
+ */
 async function initializeApp() {
   try {
     console.log("Starter initialisering...");
@@ -1187,6 +1223,7 @@ async function initializeApp() {
 
     // 3) Hent eksisterende chatter og fyll ut chat-selector
     const existingChats = await fetchChats(false); // Sett autoLoad til false for ikke å laste inn chats automatisk
+    console.log("fetchChats: Hentet chats:", existingChats);
 
     // 4) Opprett en ny chat og sett currentChatId til den
     currentChatId = await createNewChat();
@@ -1218,6 +1255,7 @@ async function initializeApp() {
     console.error("Feil under initialisering:", error);
   }
 }
+
 
 // Kjør initializeApp når dokumentet er klart
 document.addEventListener('DOMContentLoaded', () => {
