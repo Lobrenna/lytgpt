@@ -287,33 +287,51 @@ async function sendMessage(chatId, message) {
 
     if (longSelector && longSelector.value) {
       const selectedLongContext = longSelector.value;
-      console.log("sendMessage: Selected long context:", selectedLongContext);
-  
-      // Hent long_context_options fra backend
-      fetch(`${API_BASE_URL}/long-context-options`)
-        .then(response => response.json())
-        .then(data => {
-          console.log("sendMessage: Response from backend:", data);
-          if (Object.keys(data).includes(selectedLongContext)) {
-            // Finn filnavnet i listen
-            const filename = data[selectedLongContext][0];
-            // Sjekk om filnavnet ender på .pkl
-            if (filename.match(/\.pkl$/)) {
-              // Send til /rag-endepunktet
-              url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-              formData.append('long_context_selection', selectedLongContext);
-            } else {
-              // Send til vanlig håndtering
-              formData.append('long_context_selection', selectedLongContext);
-            }
+      console.log("sendMessage: Valgt long context:", selectedLongContext);
+
+      // Hent filendelse fra backend
+      fetch(`${API_BASE_URL}/long-context-options?model_name=${encodeURIComponent(selectedLongContext)}`)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("sendMessage: Respons fra backend:", data);
+
+          // Sjekk om nøkkelen finnes og hent filendelsen (f.eks. ".pkl")
+          const fileExtension = data[selectedLongContext];
+
+          // Append alltid valget til formData
+          formData.append("long_context_selection", selectedLongContext);
+
+          // Hvis ikke nøkkelen finnes, eller vi ikke får noen filendelse, sendes det til /messages som standard
+          if (!fileExtension) {
+            console.log("Ingen gyldig filendelse. Sender til /messages");
+            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+          } else if (fileExtension === ".pkl") {
+            // Hvis vi får .pkl, send til /rag
+            console.log("Filendelse er .pkl. Sender til /rag");
+            url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
           } else {
-            // Send til vanlig håndtering
-            formData.append('long_context_selection', selectedLongContext);
+            // For alle andre filendelser, send til /messages
+            console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
+            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
           }
-  
-          // Send til /messages-endepunktet
-          console.log("sendMessage: Sending to /messages-endpoint");
-          url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+
+          // Utfør selve forespørselen mot valgt endepunkt
+          console.log("sendMessage: Sender til:", url);
+          fetch(url, {
+            method: "POST",
+            body: formData,
+          })
+            .then((res) => res.json())
+            .then((result) => {
+              console.log("Svar fra server:", result);
+              // Gjør det som trengs med svaret
+            })
+            .catch((error) => {
+              console.error("Feil ved sending av melding:", error);
+            });
+        })
+        .catch((error) => {
+          console.error("Feil ved henting av long_context_options:", error);
         });
     }
 
