@@ -298,7 +298,7 @@ async function sendMessage(chatId, message) {
             // Finn filnavnet i listen
             const filename = data[selectedLongContext][0];
             // Sjekk om filnavnet ender på .pkl
-            if (filename.endsWith('.pkl')) {
+            if (filename.match(/\.pkl$/)) {
               // Send til /rag-endepunktet
               url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
               formData.append('long_context_selection', selectedLongContext);
