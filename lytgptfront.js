@@ -758,60 +758,6 @@ let isInitialized = false;
 /**
  * DOMContentLoaded
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log("Starter initialisering...");
-
-    // Valider essensielle DOM-elementer
-    if (!chatInput || !modelSelector || !chatSelector) {
-      console.error("Essensielle DOM-elementer mangler.");
-      return;
-    }
-
-    // 1) Hent modeller, long-context, og chats parallelt
-    const initTasks = [
-      fetchModels(),
-      populateLongSelector(),
-      fetchChats()
-    ];
-    const results = await Promise.allSettled(initTasks);
-
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.error(`Oppgave ${index} feilet:`, result.reason);
-      }
-    });
-
-    // 2) Opprett ny chat hvis nødvendig
-    if (!currentChatId) {
-      try {
-        currentChatId = await createNewChat();
-        console.log("Ny chat opprettet:", currentChatId);
-      } catch (error) {
-        console.error("Feil ved opprettelse av ny chat:", error);
-      }
-    }
-
-    // 3) Sett opp event listeners
-    setupEventListeners();
-    console.log("Event listeners satt opp");
-
-    // 4) Oppdater input-stil
-    if (chatInput) {
-      chatInput.style.color = "#000";
-    }
-
-    // 5) Sett opp fil-opplastinger
-    const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
-    initialFileInputs.forEach(input => {
-      input.addEventListener('change', handleFileSelection);
-    });
-
-    console.log("Initialisering fullført");
-  } catch (error) {
-    console.error("Feil under initialisering:", error);
-  }
-});
 
 
 /**
@@ -1105,3 +1051,58 @@ function onCancelDelete() {
     overlay.style.display = 'none';
   }
 }
+
+/**
+ * Initialize application
+ */
+async function initializeApp() {
+  try {
+    console.log("Starter initialisering...");
+
+    // 1) Hent modeller
+    await fetchModels();
+    console.log("Modeller hentet");
+
+    // 2) Hent long-context valg
+    await populateLongSelector();
+    console.log("Long-context valg hentet");
+
+    // 3) Opprett ny chat om vi ikke har en
+    if (!currentChatId) {
+      try {
+        currentChatId = await createNewChat();
+        console.log("Ny chat opprettet:", currentChatId);
+      } catch (error) {
+        console.error("Feil ved opprettelse av ny chat:", error);
+      }
+    }
+
+    // 4) Hent oversikt over chats
+    await fetchChats();
+    console.log("Chats hentet");
+
+    // 5) Sett opp event listeners
+    setupEventListeners();
+    console.log("Event listeners satt opp");
+
+    // 6) Oppdater input-stil
+    if (chatInput) {
+      chatInput.style.color = "#000";
+    }
+
+    // 7) Sett opp fil-opplastinger
+    const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
+    initialFileInputs.forEach(input => {
+      input.addEventListener('change', handleFileSelection);
+    });
+
+    console.log("Initialisering fullført");
+  } catch (error) {
+    console.error("Feil under initialisering:", error);
+  }
+}
+
+// Kjør initializeApp når dokumentet er klart
+document.addEventListener('DOMContentLoaded', () => {
+  initializeApp();
+});
