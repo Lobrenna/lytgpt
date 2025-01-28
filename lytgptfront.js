@@ -292,6 +292,7 @@ async function sendMessage(chatId, message) {
         fetch(`${API_BASE_URL}/long-context-options`)
           .then(response => response.json())
           .then(data => {
+            console.log("sendMessage: Response from backend:", data);
             if (data.includes(selectedLongContext)) {
               // Send til /rag-endepunktet
               url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
