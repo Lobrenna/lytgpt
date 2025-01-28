@@ -295,14 +295,16 @@ async function sendMessage(chatId, message) {
             console.log("sendMessage: Response from backend:", data);
             if (Object.keys(data).includes(selectedLongContext)) {
               // Send til /rag-endepunktet
-              console.log("sendMessage: Sending to /rag-endpoint");
               url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
               formData.append('long_context_selection', selectedLongContext);
             } else {
-              console.log("sendMessage: Sending to /messages-endpoint");
               // Send til vanlig håndtering
               formData.append('long_context_selection', selectedLongContext);
             }
+
+            // Send til /messages-endepunktet
+            console.log("sendMessage: Sending to /messages-endpoint");
+            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
           });
     }
 
