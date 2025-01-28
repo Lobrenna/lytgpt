@@ -105,18 +105,27 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) return;
 
   try {
-    const response = await fetch("http://localhost:8000/long-context-options");
+    // Henter hele ordboka (alle tilgjengelige modeller) ved å kalle endepunktet uten query-parameter
+    const response = await fetch(`${API_BASE_URL}/long-context-options`);
     if (!response.ok) {
       throw new Error(`Feil: HTTP ${response.status}`);
     }
+
+    // Eksempel på retur:
+    // {
+    //   "Gemini docs": ["long/gemini_docs_combined.txt"],
+    //   "Openai docs": ["long/openai_Docs.txt"],
+    //   ...
+    // }
     const options = await response.json();
-    
-    // Tøm <select>
+
+    // Tøm <select>-elementet før vi legger til nye valg
     longSelector.innerHTML = "";
 
     // Legg til et tomt valg først
@@ -129,8 +138,8 @@ async function populateLongSelector() {
     for (const key in options) {
       if (options.hasOwnProperty(key)) {
         const option = document.createElement("option");
-        option.value = key;          // "Claude docs"
-        option.textContent = key;    // vises i UI
+        option.value = key;         // "Claude docs"
+        option.textContent = key;   // vises i UI
         longSelector.appendChild(option);
       }
     }
@@ -138,6 +147,7 @@ async function populateLongSelector() {
     console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
+
 
 
 /**
