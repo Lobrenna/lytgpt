@@ -105,48 +105,43 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) return;
 
   try {
-    // Henter hele ordboka (alle tilgjengelige modeller) ved å kalle endepunktet uten query-parameter
-    const response = await fetch(`${API_BASE_URL}/long-context-options`);
-    if (!response.ok) {
-      throw new Error(`Feil: HTTP ${response.status}`);
-    }
-
-    // Eksempel på retur:
-    // {
-    //   "Gemini docs": ["long/gemini_docs_combined.txt"],
-    //   "Openai docs": ["long/openai_Docs.txt"],
-    //   ...
-    // }
-    const options = await response.json();
-
-    // Tøm <select>-elementet før vi legger til nye valg
-    longSelector.innerHTML = "";
-
-    // Legg til et tomt valg først
-    const emptyOption = document.createElement("option");
-    emptyOption.value = "";
-    emptyOption.textContent = "-- Ingen valgt --";
-    longSelector.appendChild(emptyOption);
-
-    // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
-    for (const key in options) {
-      if (options.hasOwnProperty(key)) {
-        const option = document.createElement("option");
-        option.value = key;         // "Claude docs"
-        option.textContent = key;   // vises i UI
-        longSelector.appendChild(option);
+      // Henter hele ordboka (alle tilgjengelige modeller) ved å kalle endepunktet uten query-parameter
+      const response = await fetch(`${API_BASE_URL}/long-context-options`);
+      if (!response.ok) {
+          throw new Error(`Feil: HTTP ${response.status}`);
       }
-    }
+
+      const options = await response.json();
+      console.log("populateLongSelector: Alternativer hentet:", options);
+
+      // Tøm <select>-elementet før vi legger til nye valg
+      longSelector.innerHTML = "";
+
+      // Legg til et tomt valg først
+      const emptyOption = document.createElement("option");
+      emptyOption.value = "";
+      emptyOption.textContent = "-- Ingen valgt --";
+      longSelector.appendChild(emptyOption);
+
+      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
+      for (const key in options) {
+          if (options.hasOwnProperty(key)) {
+              const option = document.createElement("option");
+              option.value = key;         // "Claude docs"
+              option.textContent = key;   // vises i UI
+              longSelector.appendChild(option);
+          }
+      }
   } catch (error) {
-    console.error("Feil ved henting av long-context alternativer:", error);
+      console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
+
 
 
 
@@ -256,124 +251,118 @@ async function createNewChat() {
 }
 
 async function sendMessage(chatId, message) {
-    if (!chatId) {
-        throw new Error('Chat ID er påkrevd');
-    }
+  if (!chatId) {
+      throw new Error('Chat ID er påkrevd');
+  }
 
-    console.log("sendMessage: Starting with chatId:", chatId);
+  console.log("sendMessage: Starting with chatId:", chatId);
 
-    // Klargjør endepunkt-URL
-    const encodedChatId = encodeURIComponent(chatId);
-    
-    // Hent valgt long-context
-    const longSelector = document.getElementById('long-selector');
-    let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-    
-    // Opprett FormData
-    const formData = new FormData();
-    formData.append('message', message);
-    formData.append('model', selectedModel);
+  // Klargjør endepunkt-URL
+  const encodedChatId = encodeURIComponent(chatId);
+  let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`; // Default URL
 
-    // Håndter filopplastinger
-    const fileInputs = document.querySelectorAll('.w-file-upload-input');
-    let hasFiles = false;
+  // Hent valgt long-context
+  const longSelector = document.getElementById('long-selector');
+  let selectedLongContext = null;
+  let fileExtension = null;
 
-    fileInputs.forEach((input, index) => {
-        // Sjekk for backend-filer
-        const backendFile = input.getAttribute('data-backend-file');
-        if (backendFile) {
-            formData.append('backend_files', backendFile);
-            hasFiles = true;
-            console.log(`Adding backend file: ${backendFile}`);
-        }
-        // Sjekk for lokale filer
-        if (input.files && input.files[0]) {
-            formData.append('files', input.files[0]);
-            hasFiles = true;
-            console.log(`Adding local file: ${input.files[0].name}`);
-        }
-    });
-
-
-    if (longSelector && longSelector.value) {
-      const selectedLongContext = longSelector.value;
+  if (longSelector && longSelector.value) {
+      selectedLongContext = longSelector.value;
       console.log("sendMessage: Valgt long context:", selectedLongContext);
 
-      // Hent filendelse fra backend
-      fetch(`${API_BASE_URL}/long-context-options?model_name=${encodeURIComponent(selectedLongContext)}`)
-        .then((response) => response.json())
-        .then((data) => {
+      try {
+          // Hent filendelse fra backend
+          const response = await fetch(`${API_BASE_URL}/long-context-options?model_name=${encodeURIComponent(selectedLongContext)}`);
+          if (!response.ok) {
+              throw new Error(`Feil ved henting av long_context_options: HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
           console.log("sendMessage: Respons fra backend:", data);
 
           // Sjekk om nøkkelen finnes og hent filendelsen (f.eks. ".pkl")
-          const fileExtension = data[selectedLongContext];
+          fileExtension = data[selectedLongContext];
 
           // Append alltid valget til formData
-          formData.append("long_context_selection", selectedLongContext);
+          // (Dette skjer senere, etter å ha bestemt URL)
 
-          // Hvis ikke nøkkelen finnes, eller vi ikke får noen filendelse, sendes det til /messages som standard
-          if (!fileExtension) {
-            console.log("Ingen gyldig filendelse. Sender til /messages");
-            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-          } else if (fileExtension === ".pkl") {
-            // Hvis vi får .pkl, send til /rag
-            console.log("Filendelse er .pkl. Sender til /rag");
-            url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+          if (fileExtension === ".pkl") {
+              // Hvis vi får .pkl, send til /rag
+              console.log("Filendelse er .pkl. Sender til /rag");
+              url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
           } else {
-            // For alle andre filendelser, send til /messages
-            console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
-            url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+              // For alle andre filendelser, send til /messages
+              console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
+              url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
           }
-
-          // Utfør selve forespørselen mot valgt endepunkt
-          console.log("sendMessage: Sender til:", url);
-          fetch(url, {
-            method: "POST",
-            body: formData,
-          })
-            .then((res) => res.json())
-            .then((result) => {
-              console.log("Svar fra server:", result);
-              // Gjør det som trengs med svaret
-            })
-            .catch((error) => {
-              console.error("Feil ved sending av melding:", error);
-            });
-        })
-        .catch((error) => {
+      } catch (error) {
           console.error("Feil ved henting av long_context_options:", error);
-        });
-    }
+          // Valgfritt: Bestem om du vil stoppe sendingen eller fortsette til /messages
+          // Her fortsetter vi til /messages som fallback
+          url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
+      }
+  }
 
-    console.log("sendMessage: FormData contents:");
-    for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-    }
+  // Opprett FormData
+  const formData = new FormData();
+  formData.append('message', message);
+  formData.append('model', selectedModel);
 
-    try {
-        console.log("sendMessage: Sending request to:", url);
-        const response = await fetch(url, {
-            method: 'POST',
-            body: formData,
-        });
+  // Append long_context_selection hvis valgt
+  if (selectedLongContext) {
+      formData.append("long_context_selection", selectedLongContext);
+  }
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("sendMessage: Server error:", errorData);
-            throw new Error(
-                `Nettverksfeil: ${response.status} ${response.statusText}\n` +
-                JSON.stringify(errorData)
-            );
-        }
+  // Håndter filopplastinger
+  const fileInputs = document.querySelectorAll('.w-file-upload-input');
+  let hasFiles = false;
 
-        const responseData = await response.json();
-        console.log("sendMessage: Server response:", responseData);
-        return responseData;
-    } catch (error) {
-        console.error("sendMessage: Error sending message:", error);
-        throw error;
-    }
+  fileInputs.forEach((input, index) => {
+      // Sjekk for backend-filer
+      const backendFile = input.getAttribute('data-backend-file');
+      if (backendFile) {
+          formData.append('backend_files', backendFile);
+          hasFiles = true;
+          console.log(`Adding backend file: ${backendFile}`);
+      }
+      // Sjekk for lokale filer
+      if (input.files && input.files[0]) {
+          formData.append('files', input.files[0]);
+          hasFiles = true;
+          console.log(`Adding local file: ${input.files[0].name}`);
+      }
+  });
+
+  console.log("sendMessage: FormData contents:");
+  for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+  }
+
+  try {
+      console.log("sendMessage: Sending request to:", url);
+      const response = await fetch(url, {
+          method: 'POST',
+          body: formData,
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          console.error("sendMessage: Server error:", errorData);
+          throw new Error(
+              `Nettverksfeil: ${response.status} ${response.statusText}\n` +
+              JSON.stringify(errorData)
+          );
+      }
+
+      const responseData = await response.json();
+      console.log("sendMessage: Server response:", responseData);
+      return responseData;
+  } catch (error) {
+      console.error("sendMessage: Error sending message:", error);
+      throw error;
+  }
 }
+
 
 // Separate function for updating UI elements
 function updateUIElements(data) {
