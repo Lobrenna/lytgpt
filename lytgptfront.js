@@ -28,6 +28,10 @@ let currentChatId = null;
 let selectedModel = null;
 let isScraping = false; // Ny tilstand for å forhindre multiple scraping
 
+// For å lagre globalt type long-context vi velger
+let longContextExtensions = {};
+
+
 // Konfigurer marked.js for å integrere med Prism.js
 const renderer = new marked.Renderer();
 
@@ -105,6 +109,7 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
 async function populateLongSelector() {
   const longSelector = document.getElementById("long-selector");
   if (!longSelector) return;
@@ -128,19 +133,24 @@ async function populateLongSelector() {
       emptyOption.textContent = "-- Ingen valgt --";
       longSelector.appendChild(emptyOption);
 
-      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ["long/claude_docs.txt"]
+      // Gå gjennom ordboka: nøkkel = "Claude docs", verdi = ".txt" eller ".pkl"
       for (const key in options) {
           if (options.hasOwnProperty(key)) {
               const option = document.createElement("option");
               option.value = key;         // "Claude docs"
               option.textContent = key;   // vises i UI
               longSelector.appendChild(option);
+
+              // Lagre filendelsen i global variabel
+              longContextExtensions[key] = options[key];
           }
       }
+      console.log("populateLongSelector: Long context extensions lagret:", longContextExtensions);
   } catch (error) {
       console.error("Feil ved henting av long-context alternativer:", error);
   }
 }
+
 
 
 
@@ -270,35 +280,17 @@ async function sendMessage(chatId, message) {
       selectedLongContext = longSelector.value;
       console.log("sendMessage: Valgt long context:", selectedLongContext);
 
-      try {
-          // Hent filendelse fra backend
-          const response = await fetch(`${API_BASE_URL}/long-context-options?model_name=${encodeURIComponent(selectedLongContext)}`);
-          if (!response.ok) {
-              throw new Error(`Feil ved henting av long_context_options: HTTP ${response.status}`);
-          }
+      // Slå opp filendelsen fra den globale variabelen
+      fileExtension = longContextExtensions[selectedLongContext];
+      console.log("sendMessage: Filendelse for valgt context:", fileExtension);
 
-          const data = await response.json();
-          console.log("sendMessage: Respons fra backend:", data);
-
-          // Sjekk om nøkkelen finnes og hent filendelsen (f.eks. ".pkl")
-          fileExtension = data[selectedLongContext];
-
-          // Append alltid valget til formData
-          // (Dette skjer senere, etter å ha bestemt URL)
-
-          if (fileExtension === ".pkl") {
-              // Hvis vi får .pkl, send til /rag
-              console.log("Filendelse er .pkl. Sender til /rag");
-              url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
-          } else {
-              // For alle andre filendelser, send til /messages
-              console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
-              url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
-          }
-      } catch (error) {
-          console.error("Feil ved henting av long_context_options:", error);
-          // Valgfritt: Bestem om du vil stoppe sendingen eller fortsette til /messages
-          // Her fortsetter vi til /messages som fallback
+      if (fileExtension === ".pkl") {
+          // Hvis vi får .pkl, send til /rag
+          console.log("Filendelse er .pkl. Sender til /rag");
+          url = `${API_BASE_URL}/chats/${encodedChatId}/rag`;
+      } else {
+          // For alle andre filendelser, send til /messages
+          console.log(`Filendelse er ${fileExtension}. Sender til /messages`);
           url = `${API_BASE_URL}/chats/${encodedChatId}/messages`;
       }
   }
