@@ -282,7 +282,10 @@ async function createNewChat() {
 
     // Sett valgt chat til den nye chatten
     chatSelector.value = chatTitle;
-    await loadChat(chatId);
+    currentChatId = chatId; // Sett currentChatId til den nye chatten
+    await loadChat(chatId); // Last inn den nye chatten
+
+    console.log("createNewChat: Ny chat opprettet med ID:", chatId);
 
     return chatId;
   } catch (error) {
@@ -300,7 +303,7 @@ async function sendMessage(chatId, message) {
     throw new Error('Chat ID er påkrevd');
   }
 
-  console.log("sendMessage: Starting with chatId:", chatId);
+  console.log("sendMessage: Starter med chatId:", chatId);
 
   // Klargjør endepunkt-URL
   const encodedChatId = encodeURIComponent(chatId);
@@ -366,7 +369,7 @@ async function sendMessage(chatId, message) {
   }
 
   try {
-    console.log("sendMessage: Sending request to:", url);
+    console.log("sendMessage: Sender forespørsel til:", url);
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -387,10 +390,10 @@ async function sendMessage(chatId, message) {
     }
 
     const responseData = await response.json();
-    console.log("sendMessage: Server response:", responseData);
+    console.log("sendMessage: Mottatt svar fra server:", responseData);
     return responseData;
   } catch (error) {
-    console.error("sendMessage: Error sending message:", error);
+    console.error("sendMessage: Feil ved sending av melding:", error);
     throw error;
   }
 }
@@ -470,6 +473,10 @@ async function onSendMessage() {
       console.log(`Chat ${currentChatId} omdøpt til: ${newTitle}`);
     }
 
+    // Log for debugging
+    console.log("Current Chat ID etter sendMessage:", currentChatId);
+    console.log("Title to Chat ID Map etter sendMessage:", titleToChatIdMap);
+
   } catch (error) {
     console.error('Feil ved sending av melding:', error);
     if (generatingMessage && generatingMessage.parentNode) {
@@ -515,8 +522,6 @@ async function onNewChat() {
     const chatId = await createNewChat();
     currentChatId = chatId;
 
-    // Sett valgt chat til den nye chatten (håndteres i createNewChat)
-    
     if (chatMessages) {
       chatMessages.innerHTML = '';
     }
@@ -640,7 +645,7 @@ async function deleteChat(chatId) {
     } else {
       // Opprett en ny chat hvis ingen eksisterer
       currentChatId = await createNewChat();
-      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
+      appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
     }
   } catch (error) {
     console.error("deleteChat: Feil:", error);
@@ -673,6 +678,7 @@ async function onChatChange(e) {
   if (!chatId) {
     console.warn("Fant ikke chatId for valgt title:", chosenTitle);
     try {
+      // Dette bør ikke skje hvis mappingen er korrekt
       currentChatId = await createNewChat();
       chatSelector.value = Object.keys(titleToChatIdMap).find(
         title => titleToChatIdMap[title] === currentChatId
@@ -764,6 +770,9 @@ function removeFileUpload(fileUploadDiv, isBackend = false) {
   }
 }
 
+/**
+ * onSetUrl
+ */
 async function onSetUrl() {
   if (isScraping) {
     console.warn('Scraping already in progress.');
@@ -846,6 +855,8 @@ let isInitialized = false;
 
 /**
  * fetchChats
+ * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
+ * @returns {Array} - Returnerer listen av chatter
  */
 async function fetchChats(autoLoad = true) {
   try {
@@ -882,25 +893,15 @@ async function fetchChats(autoLoad = true) {
         chatSelector.appendChild(option);
       });
 
-      // Sjekk om nåværende chat finnes i lista
-      const chatExists = Object.values(titleToChatIdMap).includes(currentChatId);
-      if (currentChatId && chatExists) {
-        const currentChatTitle = Object.keys(titleToChatIdMap).find(
-          title => titleToChatIdMap[title] === currentChatId
-        );
-        chatSelector.value = currentChatTitle;
-        if (autoLoad) {
-          await loadChat(currentChatId);
-        }
-      } else {
-        // Opprett en ny chat hvis den nåværende ikke finnes
-        currentChatId = await createNewChat();
-        console.log("Opprettet ny chat da valgt chat ikke fantes:", currentChatId);
-        // chatSelector.value settes i createNewChat
-      }
+      // Ikke auto-load noen chat, selv om autoLoad er true
+      // Dette er bevisst for å alltid starte med en ny chat
     }
+
+    console.log("fetchChats: Hentet chats:", chats);
+    return chats;
   } catch (error) {
     console.error('fetchChats: Feil:', error);
+    return []; // Returner tom liste ved feil
   }
 }
 
@@ -945,6 +946,8 @@ async function loadChat(chatId) {
 
       // Sett valgt chat i dropdown
       chatSelector.value = chatTitle;
+
+      console.log(`loadChat: Lastet inn chat med ID: ${chatId} og tittel: ${chatTitle}`);
     } else {
       console.warn("Chat ikke funnet, oppretter ny chat.");
       currentChatId = await createNewChat();
@@ -977,7 +980,7 @@ function handleFileSelection(event) {
     const file = event.target.files[0];
     const defaultView = fileUploadDiv.querySelector('.w-file-upload-default');
     const uploadSuccess = fileUploadDiv.querySelector('.w-file-upload-success');
-    const fileNameDiv = fileUploadDiv.querySelector('.w-file-upload-file-name');
+    const fileNameDiv = uploadSuccess.querySelector('.w-file-upload-file-name');
 
     if (defaultView && uploadSuccess && fileNameDiv) {
       fileNameDiv.textContent = file.name;
@@ -1030,7 +1033,7 @@ function handleFileSelection(event) {
         <div class="w-file-upload-error w-hidden">
           <div class="w-file-upload-error-msg">Upload failed. Max size for files is 10 MB.</div>
         </div>`;
-    
+
       fileUploadDiv.parentNode.insertBefore(newUploadDiv, fileUploadDiv.nextSibling);
       const newInput = newUploadDiv.querySelector('.w-file-upload-input');
       if (newInput) {
@@ -1178,30 +1181,29 @@ async function initializeApp() {
     await populateLongSelector();
     console.log("Long-context valg hentet");
 
-    // 3) Opprett ny chat om vi ikke har en
-    if (!currentChatId) {
-      try {
-        currentChatId = await createNewChat();
-        console.log("Ny chat opprettet:", currentChatId);
-      } catch (error) {
-        console.error("Feil ved opprettelse av ny chat:", error);
-      }
+    // 3) Hent eksisterende chatter og fyll ut chat-selector
+    const existingChats = await fetchChats(false); // Sett autoLoad til false for ikke å laste inn chats automatisk
+
+    // 4) Opprett en ny chat og sett currentChatId til den
+    currentChatId = await createNewChat();
+    console.log("Ny chat opprettet som den aktive chatten:", currentChatId);
+
+    // 5) Last inn den nye chatten i chat-messages
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
     }
+    appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
 
-    // 4) Hent oversikt over chats
-    await fetchChats();
-    console.log("Chats hentet");
-
-    // 5) Sett opp event listeners
+    // 6) Sett opp event listeners
     setupEventListeners();
     console.log("Event listeners satt opp");
 
-    // 6) Oppdater input-stil
+    // 7) Oppdater input-stil
     if (chatInput) {
       chatInput.style.color = "#000";
     }
 
-    // 7) Sett opp fil-opplastinger
+    // 8) Sett opp fil-opplastinger
     const initialFileInputs = document.querySelectorAll('.w-file-upload-input');
     initialFileInputs.forEach(input => {
       input.addEventListener('change', handleFileSelection);
