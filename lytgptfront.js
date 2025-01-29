@@ -1140,27 +1140,19 @@ function setupEventListeners() {
 /**
  * updateChatSelector
  */
- async function updateChatSelector(newChatId) {
-   await fetchChats(false);
-   if (chatSelector) {
-     const newChatTitle = Object.keys(titleToChatIdMap).find(
-       title => titleToChatIdMap[title] === newChatId
-     );
-     if (newChatTitle) {
-       chatSelector.value = newChatTitle;
-       await loadChat(newChatId);
-     }
-   }
- }
-
-
-
-  // Sørger for at dropdownen alltid åpnes nedover ved å nullstille UI-effekter
-  chatSelector.style.height = `${originalHeight}px`;
+async function updateChatSelector(newChatId) {
+  await fetchChats(false);
+  if (chatSelector) {
+    const newChatTitle = Object.keys(titleToChatIdMap).find(
+      title => titleToChatIdMap[title] === newChatId
+    );
+    if (newChatTitle) {
+      chatSelector.value = newChatTitle;
+      await loadChat(newChatId);
+    }
+  }
 }
 
-// Sikrer at removeFileUpload er tilgjengelig globalt
-window.removeFileUpload = removeFileUpload;
 
 /**
  * onConfirmDelete
