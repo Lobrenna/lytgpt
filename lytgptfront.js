@@ -917,13 +917,6 @@ async function fetchChats() {
   }
 }
 
-    console.log("fetchChats: Hentet chats:", chats);
-    return chats;
-  } catch (error) {
-    console.error('fetchChats: Feil:', error);
-    return [];
-  }
-}
 
 /**
  * loadChat
