@@ -323,6 +323,7 @@ async function sendMessage(chatId, message) {
 
   // Klargjør endepunkt-URL
   const encodedChatId = encodeURIComponent(chatId);
+
   let url = `${API_BASE_URL}/chats/${encodedChatId}/messages`; // Default URL
 
   // Hent valgt long-context
@@ -881,51 +882,40 @@ async function fetchChats(autoLoad = true) {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
     if (!response.ok) {
-      let errorMsg = `fetchChats: Feil respons: ${response.status} ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        errorMsg += ` - ${JSON.stringify(errorData)}`;
-      } catch (e) {
-        // Responsen inneholder ikke JSON
-      }
-      console.error(errorMsg);
-      throw new Error('Feil ved henting av chats');
+      throw new Error(`fetchChats: Feil respons: ${response.status} ${response.statusText}`);
     }
 
     const chats = await response.json();
 
     if (chatSelector) {
-      chatSelector.innerHTML = '';
-      titleToChatIdMap = {}; // Nullstill mappingen
+      chatSelector.innerHTML = ''; // Tømmer select-listen før vi legger til nye elementer
+      titleToChatIdMap = {}; // Nullstiller mappingen
 
       chats.forEach(chat => {
-        const chatId = chat.id || chat.title; // Bruk title som fallback
-        const chatTitle = chat.title || chatId; // Sikre at chatTitle alltid er definert
+        const chatId = chat.id || chat.title; 
+        const chatTitle = chat.title || chatId; 
 
         if (!chatId) {
           console.warn("fetchChats: `id` og `title` er ikke definert for en chat:", chat);
-          return; // Hopp over denne chatten
+          return;
         }
 
-        // Oppdater mappingen
         titleToChatIdMap[chatTitle] = chatId;
 
-        // Legg til i dropdown
         const option = document.createElement('option');
-        option.value = chatTitle; // Bruk title som verdi i dropdown
-        option.textContent = chatTitle; // Vis title i dropdown
-        chatSelector.appendChild(option);
-      });
+        option.value = chatTitle;
+        option.textContent = chatTitle;
 
-      // Ikke auto-load noen chat, selv om autoLoad er true
-      // Dette er bevisst for å alltid starte med en ny chat
+        // Bruk insertBefore for å legge til nye chatter øverst
+        chatSelector.insertBefore(option, chatSelector.firstChild);
+      });
     }
 
     console.log("fetchChats: Hentet chats:", chats);
     return chats;
   } catch (error) {
     console.error('fetchChats: Feil:', error);
-    return []; // Returner tom liste ved feil
+    return [];
   }
 }
 
