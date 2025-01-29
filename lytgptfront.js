@@ -878,7 +878,7 @@ let isInitialized = false;
  * @param {boolean} autoLoad - Om funksjonen skal automatisk laste inn den valgte chatten
  * @returns {Array} - Returnerer listen av chatter
  */
-async function fetchChats(autoLoad = true) {
+async function fetchChats() {
   try {
     const response = await fetch(`${API_BASE_URL}/chats`);
     if (!response.ok) {
@@ -886,30 +886,36 @@ async function fetchChats(autoLoad = true) {
     }
 
     const chats = await response.json();
+    console.log("fetchChats: Hentede chatter:", chats);
 
-    if (chatSelector) {
-      chatSelector.innerHTML = ''; // Tømmer select-listen før vi legger til nye elementer
-      titleToChatIdMap = {}; // Nullstiller mappingen
-
-      chats.forEach(chat => {
-        const chatId = chat.id || chat.title; 
-        const chatTitle = chat.title || chatId; 
-
-        if (!chatId) {
-          console.warn("fetchChats: `id` og `title` er ikke definert for en chat:", chat);
-          return;
-        }
-
-        titleToChatIdMap[chatTitle] = chatId;
-
-        const option = document.createElement('option');
-        option.value = chatTitle;
-        option.textContent = chatTitle;
-
-        // Bruk insertBefore for å legge til nye chatter øverst
-        chatSelector.insertBefore(option, chatSelector.firstChild);
-      });
+    const chatSelector = document.getElementById("chat-selector");
+    if (!chatSelector) {
+      console.error("fetchChats: chatSelector ikke funnet.");
+      return;
     }
+
+    // Tøm <select>-elementet før vi legger til nye valg
+    chatSelector.innerHTML = "";
+
+    // Legg til et tomt valg først
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = "-- Velg en chat --";
+    chatSelector.appendChild(emptyOption);
+
+    // Legg til hver chat som en option i dropdown
+    chats.forEach(chat => {
+      const option = document.createElement("option");
+      option.value = chat.id || chat.title; // Bruk ID hvis tilgjengelig, ellers title
+      option.textContent = chat.title || chat.id; // Vis title i UI
+      chatSelector.appendChild(option);
+    });
+
+    console.log("fetchChats: chatSelector oppdatert.");
+  } catch (error) {
+    console.error("fetchChats: Feil ved henting av chatter:", error);
+  }
+}
 
     console.log("fetchChats: Hentet chats:", chats);
     return chats;
