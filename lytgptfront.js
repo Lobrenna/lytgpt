@@ -1082,12 +1082,6 @@ function updateFileList(files) {
  * setupEventListeners
  */
 function setupEventListeners() {
-  chatSelector.addEventListener("mousedown", function(event) {
-    event.preventDefault(); // Hindrer standard åpning (som kan gå oppover)
-    chatSelector.setAttribute("size", "5"); // Sikrer at dropdown åpnes nedover
-    chatSelector.focus();
-  });
-  
   if (modelSelector) {
     modelSelector.addEventListener('change', onModelChange);
   }
@@ -1146,38 +1140,20 @@ function setupEventListeners() {
 /**
  * updateChatSelector
  */
-// async function updateChatSelector(newChatId) {
-//   await fetchChats(false);
-//   if (chatSelector) {
-//     const newChatTitle = Object.keys(titleToChatIdMap).find(
-//       title => titleToChatIdMap[title] === newChatId
-//     );
-//     if (newChatTitle) {
-//       chatSelector.value = newChatTitle;
-//       await loadChat(newChatId);
-//     }
-//   }
-// }
+ async function updateChatSelector(newChatId) {
+   await fetchChats(false);
+   if (chatSelector) {
+     const newChatTitle = Object.keys(titleToChatIdMap).find(
+       title => titleToChatIdMap[title] === newChatId
+     );
+     if (newChatTitle) {
+       chatSelector.value = newChatTitle;
+       await loadChat(newChatId);
+     }
+   }
+ }
 
 
-async function updateChatSelector(newChatId) {
-  if (!chatSelector) return;
-  
-  // Midlertidig lagrer nåværende høyde for å unngå "hopp"
-  const originalHeight = chatSelector.offsetHeight;
-
-  // Hent chat-titler og oppdater dropdown **uten å forstyrre UI**
-  const previousValue = chatSelector.value;
-  await fetchChats(false);
-
-  const newChatTitle = Object.keys(titleToChatIdMap).find(
-    title => titleToChatIdMap[title] === newChatId
-  );
-
-  if (newChatTitle) {
-    chatSelector.value = newChatTitle;
-    await loadChat(newChatId);
-  }
 
   // Sørger for at dropdownen alltid åpnes nedover ved å nullstille UI-effekter
   chatSelector.style.height = `${originalHeight}px`;
