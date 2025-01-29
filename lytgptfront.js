@@ -1082,6 +1082,12 @@ function updateFileList(files) {
  * setupEventListeners
  */
 function setupEventListeners() {
+  chatSelector.addEventListener("mousedown", function(event) {
+    event.preventDefault(); // Hindrer standard åpning (som kan gå oppover)
+    chatSelector.setAttribute("size", "5"); // Sikrer at dropdown åpnes nedover
+    chatSelector.focus();
+  });
+  
   if (modelSelector) {
     modelSelector.addEventListener('change', onModelChange);
   }
