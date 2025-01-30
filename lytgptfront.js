@@ -545,7 +545,7 @@ async function handleDeepBSearch() {
       alert("Vennligst start en ny chat først");
       return;
   }
-  const button = document.getElementById('button_deepb');
+  const button = document.getElementById('button-deepb');
   const chatInput = document.getElementById('chat-input');
   // Lagre original button state
   const originalButtonText = button.textContent;
