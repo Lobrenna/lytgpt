@@ -599,6 +599,7 @@ async function handleDeepBAgent() {
       alert("Vennligst start en ny chat først");
       return;
   }
+  console.log("handleDeepBAgent: Starter...");
   const button = document.getElementById('button-deepb-agent');
   const chatInput = document.getElementById('chat-input');
   // Lagre original button state
