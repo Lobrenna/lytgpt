@@ -611,7 +611,7 @@ async function handleDeepBAgent() {
       const formData = new FormData();
       // Legg til company_brief hvis det finnes tekst i chat-input
       if (chatInput && chatInput.value.trim()) {
-          formData.append('company_brief', chatInput.value.trim());
+          formData.append('message', chatInput.value.trim());
       }
       // Legg til num_results (valgfritt)
       formData.append('num_results', '30');
