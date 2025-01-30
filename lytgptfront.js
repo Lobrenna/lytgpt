@@ -71,13 +71,46 @@ marked.setOptions({
 /**
  * renderMarkdown(markdownText)
  */
-function renderMarkdown(markdownText) {
-  if (typeof markdownText !== 'string') {
-    console.warn('Invalid markdown input:', markdownText);
-    return '';
+function renderMarkdown(content) {
+  // Sjekk om input er ugyldig
+  if (!content) {
+      console.warn('Invalid input:', content);
+      return '';
   }
-
-  let html = marked.parse(markdownText);
+  // Sjekk om innholdet er en DeepB-tabell (ser etter karakteristiske mønstre)
+  if (typeof content === 'string' && content.includes('| Domene | Likhet | Beskrivelse |')) {
+      // Parse tabelldata fra markdown-format
+      const rows = content.split('\n').filter(row => row.trim());
+      const tableData = rows.slice(2) // Hopp over header og separator
+          .map(row => {
+              const [domain, score, description] = row.split('|').slice(1, -1).map(cell => cell.trim());
+              return { domain, score, description };
+          });
+      // Generer HTML-tabell med vår tilpassede styling
+      const tableRows = tableData.map(row => `
+          <tr>
+              <td><a href="https://${row.domain}" target="_blank">${row.domain}</a></td>
+              <td>${row.score}</td>
+              <td>${row.description}</td>
+          </tr>`).join('\n');
+      return `
+      <div class="table-container">
+          <table class="deepb-results-table">
+              <thead>
+                  <tr>
+                      <th>Domene</th>
+                      <th>Likhet</th>
+                      <th>Beskrivelse</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${tableRows}
+              </tbody>
+          </table>
+      </div>`;
+  }
+  // For vanlig markdown-tekst
+  let html = marked.parse(content);
   html = html.replace(/\n\s*\n/g, '\n');
   html = html.replace(/<p>(\s*<[uo]l>)/g, '$1');
   html = html.replace(/(<\/[uo]l>\s*)<\/p>/g, '$1');
@@ -174,43 +207,42 @@ async function populateLongSelector() {
 /**
  * appendMessageToChat
  */
-function appendMessageToChat(role, htmlContent) {
+function appendMessageToChat(role, content) {
   if (!chatMessages) {
-    console.error("Chat messages element not found.");
-    return;
+      console.error("Chat messages element not found.");
+      return;
   }
   const msgEl = document.createElement('div');
   msgEl.classList.add('chat-message', role);
-  msgEl.style.whiteSpace = 'pre-wrap';
-
   // For brukerens meldinger, fjern ev. "Context:" etc.
   if (role === 'user') {
-    if (typeof htmlContent === 'string' && htmlContent.includes('Context:')) {
-      const questionMatch = htmlContent.match(/Spørsmål:([^]*?)$/);
-      if (questionMatch) {
-        htmlContent = questionMatch[1].trim();
+      if (typeof content === 'string' && content.includes('Context:')) {
+          const questionMatch = content.match(/Spørsmål:([^]*?)$/);
+          if (questionMatch) {
+              content = questionMatch[1].trim();
+          }
       }
-    }
-    htmlContent = htmlContent.replace(/<p>(.*?)<\/p>/g, '$1');
+      content = content.replace(/<p>(.*?)<\/p>/g, '$1');
   }
-
-  // Kjapp sjekk for om innholdet bør formateres med markdown
-  if (role === 'user' && !htmlContent.includes('</code>') && !htmlContent.includes('\n```')) {
-    htmlContent = renderMarkdown(htmlContent);
+  // Sjekk om innholdet er en tabell (DeepB-resultater)
+  if (content.includes('<table class="deepb-results-table"')) {
+      msgEl.innerHTML = content;
+  } else {
+      // Vanlig markdown-formatering for andre meldinger
+      if (role === 'user' && !content.includes('</code>') && !content.includes('\n```')) {
+          content = renderMarkdown(content);
+      }
+      msgEl.innerHTML = content;
   }
-
-  msgEl.innerHTML = htmlContent;
-
-  // Syntax-highlighting
+  // Syntax-highlighting for kodeblokker
   const codeBlocks = msgEl.querySelectorAll('pre code');
   codeBlocks.forEach((block) => {
-    Prism.highlightElement(block);
+      Prism.highlightElement(block);
   });
-
   chatMessages.appendChild(msgEl);
   chatMessages.scrollTo({
-    top: chatMessages.scrollHeight,
-    behavior: 'smooth'
+      top: chatMessages.scrollHeight,
+      behavior: 'smooth'
   });
 }
 
