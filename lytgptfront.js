@@ -607,7 +607,7 @@ async function handleDeepBAgent() {
     showSpinner(button, 'Søker...');
     message = document.getElementById('chat-input').value.trim();
 
-    console.log("chatinput:", chatInput);
+    console.log("message:", message);
     const response = await fetch(
       `${API_BASE_URL}/chats/${currentChatId}/deepb_agent`, 
       {
