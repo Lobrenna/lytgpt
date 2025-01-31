@@ -155,32 +155,34 @@ function renderMarkdown(content) {
   html = html.replace(/(<\/[uo]l>\s*)<\/p>/g, '$1');
   return html;
 }
+
+
 function showSpinner(buttonElement, message) {
   console.log('showSpinner called');
-  if (!buttonElement) {
-      console.error('Button element not found');
-      return;
-  }
+  if (!buttonElement) return;
   if (isScraping) {
       console.warn('Scraping already in progress.');
       return;
   }
   isScraping = true;
-  buttonElement.dataset.originalText = buttonElement.innerHTML;
+  
+  // Lagre original tekst hvis den ikke allerede er lagret
+  if (!buttonElement.dataset.originalText) {
+      buttonElement.dataset.originalText = buttonElement.innerHTML;
+  }
+  
   buttonElement.innerHTML = `<span class="spinner"></span>${message}`;
   buttonElement.disabled = true;
 }
 
 function hideSpinner(buttonElement) {
   console.log('hideSpinner called');
-  if (!buttonElement) {
-      console.error('Button element not found');
-      return;
-  }
-  buttonElement.innerHTML = buttonElement.dataset.originalText || 'DeepB søk';
+  if (!buttonElement) return;
+  buttonElement.innerHTML = buttonElement.dataset.originalText || 'Lastet opp';
   buttonElement.disabled = false;
   isScraping = false;
 }
+
 
 
 function formatFileSize(bytes) {
