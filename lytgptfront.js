@@ -155,7 +155,6 @@ function renderMarkdown(content) {
   html = html.replace(/(<\/[uo]l>\s*)<\/p>/g, '$1');
   return html;
 }
-
 function showSpinner(buttonElement, message) {
   console.log('showSpinner called for:', buttonElement);
   if (!buttonElement) return;
@@ -165,12 +164,13 @@ function showSpinner(buttonElement, message) {
   }
   isScraping = true;
 
-  // Sjekk om Webflow-knappen er en `<input type="button">`
+  // Håndter Webflow `input[type="button"]`
   if (buttonElement.tagName === "INPUT") {
       if (!buttonElement.dataset.originalText) {
           buttonElement.dataset.originalText = buttonElement.value; // Lagre original verdi
       }
-      buttonElement.value = message; // Oppdater tekst
+      buttonElement.value = message; // Endre tekst
+      buttonElement.classList.add("loading-spinner"); // Legg til spinner-klasse
   } else {
       if (!buttonElement.dataset.originalText) {
           buttonElement.dataset.originalText = buttonElement.innerHTML;
@@ -184,10 +184,11 @@ function showSpinner(buttonElement, message) {
 function hideSpinner(buttonElement) {
   console.log('hideSpinner called for:', buttonElement);
   if (!buttonElement) return;
-  
-  // Tilpass Webflow-knappene
+
+  // Håndter Webflow-knappene
   if (buttonElement.tagName === "INPUT") {
       buttonElement.value = buttonElement.dataset.originalText || 'DeepB søk';
+      buttonElement.classList.remove("loading-spinner"); // Fjern spinner-klasse
   } else {
       buttonElement.innerHTML = buttonElement.dataset.originalText || 'DeepB søk';
   }
@@ -195,6 +196,7 @@ function hideSpinner(buttonElement) {
   buttonElement.disabled = false;
   isScraping = false;
 }
+
 
 
 
