@@ -529,10 +529,52 @@ function updateUIElements(data) {
   }
 }
 
+async function onSendMessage() {
+  if (!chatInput || !chatInput.value.trim()) return;
+
+  const message = chatInput.value.trim();
+
+  // Sjekk om meldingen inneholder @deepb i ulike formater
+  if (message.toLowerCase().includes("@deepb")) {
+      console.log("Detected @deepb in message, redirecting to handleDeepBSearch...");
+      handleDeepBSearch(); // Kall DeepB-søk i stedet
+      return;
+  }
+
+  // Vanlig chat-melding sendes her
+  appendMessageToChat('user', renderMarkdown(message));
+  chatInput.value = '';
+
+  const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
+  showSpinner(sendButton, 'Sender...');
+
+  try {
+      if (!currentChatId) {
+          throw new Error('Ingen aktiv chat');
+      }
+
+      let data = await sendMessage(currentChatId, message);
+
+      if (generatingMessage && generatingMessage.parentNode) {
+          generatingMessage.parentNode.removeChild(generatingMessage);
+      }
+
+      appendMessageToChat('assistant', renderMarkdown(data.response));
+  } catch (error) {
+      console.error('Feil ved sending av melding:', error);
+      if (generatingMessage && generatingMessage.parentNode) {
+          generatingMessage.parentNode.removeChild(generatingMessage);
+      }
+      appendMessageToChat('error', `Det oppstod en feil: ${error.message}`);
+  } finally {
+      hideSpinner(sendButton);
+  }
+}
+
 /**
  * onSendMessage
  */
-async function onSendMessage() {
+async function onSendMessageOLD() {
   if (!chatInput || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
