@@ -600,22 +600,24 @@ async function handleDeepBAgent() {
   const button = document.getElementById('button-deepb-agent');
   const chatInput = document.getElementById('chat-input');
   console.log("chatinput:", chatInput);
-  
+
   try {
     showSpinner(button, 'Søker...');
-    const message = chatInput ? chatInput.value.trim() : ""; // Håndterer manglende input
-    console.log("Message:", message);
-    const num_results = 30;  // Behold denne om du vil begrense resultater
-    const model = "gpt-4o" // Legg til modell-feltet her
-    const requestBody = { message, num_results, model }; // Opprett request body
-    console.log("Request Body:", requestBody);
-    const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/deepb_agent`, {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(requestBody) // Bruk JSON.stringify
-    });
+    
+    const message = chatInput ? chatInput.value.trim() : "";
+    const model = "gpt-4o"; // eller hvilken modell du bruker
+    const num_results = 30; // Kan nå sendes som query parameter
+    const response = await fetch(
+      `${API_BASE_URL}/chats/${currentChatId}/deepb_agent?num_results=${num_results}`, // num_results som query parameter
+      {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message, model }) // KUN message og model i body
+      }
+    );
+    console.log("Response:", response);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
