@@ -546,7 +546,7 @@ async function onSendMessage() {
   chatInput.value = '';
 
   const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
-  showSpinner(sendButton, 'Sender...');
+  showSpinner(sendButton, 'Genererer...');
 
   try {
       if (!currentChatId) {
