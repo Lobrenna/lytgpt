@@ -68,6 +68,45 @@ marked.setOptions({
   }
 });
 
+
+/**
+ * Funksjon for å render chat-meldinger
+ */
+function renderMessage(message) {
+  const chatMessages = document.getElementById('chat-messages');
+  const messageDiv = document.createElement('div');
+  messageDiv.classList.add('chat-message', message.role);
+
+  // Bruk 'marked' til å konvertere Markdown til HTML
+  let htmlContent = marked.parse(message.content);
+  // Rens HTML-en for sikkerhet
+  htmlContent = DOMPurify.sanitize(htmlContent);
+
+  messageDiv.innerHTML = htmlContent;
+
+  // Identifiser tabeller i meldingen
+  const tables = messageDiv.getElementsByTagName('table');
+  for (let table of tables) {
+      // Bestem om tabellen er en DeepB-tabell ved å sjekke klassen eller annen identifikator
+      if (table.classList.contains('deepb-results-table')) {
+          // Pakk inn i .table-container for DeepB-tabeller
+          const tableContainer = document.createElement('div');
+          tableContainer.classList.add('table-container');
+          table.parentNode.insertBefore(tableContainer, table);
+          tableContainer.appendChild(table);
+      } else {
+          // For generelle tabeller, pakk inn i .general-table-container
+          const tableContainer = document.createElement('div');
+          tableContainer.classList.add('general-table-container');
+          table.parentNode.insertBefore(tableContainer, table);
+          tableContainer.appendChild(table);
+      }
+  }
+
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 /**
  * renderMarkdown(markdownText)
  */
@@ -116,13 +155,12 @@ function renderMarkdown(content) {
   html = html.replace(/(<\/[uo]l>\s*)<\/p>/g, '$1');
   return html;
 }
-
-/**
- * showSpinner / hideSpinner
- */
 function showSpinner(buttonElement, message) {
   console.log('showSpinner called');
-  if (!buttonElement) return;
+  if (!buttonElement) {
+      console.error('Button element not found');
+      return;
+  }
   if (isScraping) {
       console.warn('Scraping already in progress.');
       return;
@@ -135,11 +173,15 @@ function showSpinner(buttonElement, message) {
 
 function hideSpinner(buttonElement) {
   console.log('hideSpinner called');
-  if (!buttonElement) return;
+  if (!buttonElement) {
+      console.error('Button element not found');
+      return;
+  }
   buttonElement.innerHTML = buttonElement.dataset.originalText || 'DeepB søk';
   buttonElement.disabled = false;
   isScraping = false;
 }
+
 
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -539,11 +581,8 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
-
-/**
- * Funksjon for å håndtere DeepB-søk
- */
 async function handleDeepBSearch() {
+  console.log('handleDeepBSearch called');
   if (!currentChatId) {
       console.error("Ingen aktiv chat funnet");
       alert("Vennligst start en ny chat først");
@@ -565,14 +604,20 @@ async function handleDeepBSearch() {
       // Legg til num_results (valgfritt)
       formData.append('num_results', '20');
       // Utfør API-kall
+      console.log(`Sending POST request to ${API_BASE_URL}/chats/${currentChatId}/deepb_search with FormData:`);
+      for (let pair of formData.entries()) {
+          console.log(`${pair[0]}: ${pair[1]}`);
+      }
       const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/deepb_search`, {
           method: 'POST',
           body: formData
       });
+      console.log('API response status:', response.status);
       if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      console.log('API response data:', data);
       // Håndter respons
       if (data.response) {
           // Tøm input-feltet hvis det ble brukt
