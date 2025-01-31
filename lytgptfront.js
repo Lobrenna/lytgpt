@@ -156,32 +156,46 @@ function renderMarkdown(content) {
   return html;
 }
 
-
 function showSpinner(buttonElement, message) {
-  console.log('showSpinner called');
+  console.log('showSpinner called for:', buttonElement);
   if (!buttonElement) return;
   if (isScraping) {
       console.warn('Scraping already in progress.');
       return;
   }
   isScraping = true;
-  
-  // Lagre original tekst hvis den ikke allerede er lagret
-  if (!buttonElement.dataset.originalText) {
-      buttonElement.dataset.originalText = buttonElement.innerHTML;
+
+  // Sjekk om Webflow-knappen er en `<input type="button">`
+  if (buttonElement.tagName === "INPUT") {
+      if (!buttonElement.dataset.originalText) {
+          buttonElement.dataset.originalText = buttonElement.value; // Lagre original verdi
+      }
+      buttonElement.value = message; // Oppdater tekst
+  } else {
+      if (!buttonElement.dataset.originalText) {
+          buttonElement.dataset.originalText = buttonElement.innerHTML;
+      }
+      buttonElement.innerHTML = `<span class="spinner"></span>${message}`;
   }
-  
-  buttonElement.innerHTML = `<span class="spinner"></span>${message}`;
+
   buttonElement.disabled = true;
 }
 
 function hideSpinner(buttonElement) {
-  console.log('hideSpinner called');
+  console.log('hideSpinner called for:', buttonElement);
   if (!buttonElement) return;
-  buttonElement.innerHTML = buttonElement.dataset.originalText || 'Lastet opp';
+  
+  // Tilpass Webflow-knappene
+  if (buttonElement.tagName === "INPUT") {
+      buttonElement.value = buttonElement.dataset.originalText || 'DeepB søk';
+  } else {
+      buttonElement.innerHTML = buttonElement.dataset.originalText || 'DeepB søk';
+  }
+
   buttonElement.disabled = false;
   isScraping = false;
 }
+
 
 
 
@@ -583,6 +597,10 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
+
+/**
+ * handleDeepBSearch
+ */
 async function handleDeepBSearch() {
   console.log('handleDeepBSearch called');
   if (!currentChatId) {
