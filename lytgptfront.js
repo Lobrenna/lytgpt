@@ -590,6 +590,7 @@ async function handleDeepBSearch() {
   }
 }
 
+
 /**
  * getCurrentChatTitle
  * Hjelpefunksjon for å hente den nåværende chat-tittelen
