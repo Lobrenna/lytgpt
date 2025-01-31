@@ -598,14 +598,15 @@ async function handleDeepBAgent() {
     return;
   }
   const button = document.getElementById('button-deepb-agent');
-
   const originalButtonText = button.textContent;
+  let message = ""; // 👈 Deklarer message HER
+  const model = "gpt-4o"; 
+
 
   try {
     showSpinner(button, 'Søker...');
-    const chatInput = document.getElementById('chat-input');
+    chatInput = document.getElementById('chat-input');
     console.log("chatinput:", chatInput);
-    const model = "gpt-4o"; // eller hvilken modell du bruker
     const response = await fetch(
       `${API_BASE_URL}/chats/${currentChatId}/deepb_agent`, 
       {
