@@ -600,6 +600,8 @@ async function handleDeepBAgent() {
   const button = document.getElementById('button-deepb-agent');
   const chatInput = document.getElementById('chat-input');
   console.log("chatinput:", chatInput);
+  const originalButtonText = button.textContent;
+
 
   try {
     showSpinner(button, 'Søker...');
