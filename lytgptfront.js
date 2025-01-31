@@ -117,14 +117,15 @@ function renderMarkdown(content) {
   return html;
 }
 
+
 /**
  * showSpinner / hideSpinner
  */
 function showSpinner(buttonElement, message) {
   if (!buttonElement) return;
   if (isScraping) {
-    console.warn('Scraping already in progress.');
-    return;
+      console.warn('Scraping already in progress.');
+      return;
   }
   isScraping = true;
   buttonElement.dataset.originalText = buttonElement.innerHTML;
@@ -537,7 +538,6 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
-
 // Ny funksjon for å håndtere DeepB-søk
 async function handleDeepBSearch() {
   if (!currentChatId) {
