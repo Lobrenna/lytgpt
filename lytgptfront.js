@@ -599,13 +599,16 @@ async function handleDeepBAgent() {
   }
   const button = document.getElementById('button-deepb-agent');
   const chatInput = document.getElementById('chat-input');
-  const originalButtonText = button.textContent;
+  console.log("chatinput:", chatInput);
+  console.log("Request Body:", requestBody);
   try {
     showSpinner(button, 'Søker...');
     const message = chatInput ? chatInput.value.trim() : ""; // Håndterer manglende input
+    console.log("Message:", message);
     const num_results = 30;  // Behold denne om du vil begrense resultater
     const model = "gpt-4o" // Legg til modell-feltet her
     const requestBody = { message, num_results, model }; // Opprett request body
+    console.log("Request Body:", requestBody);
     const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/deepb_agent`, {
       method: 'POST',
       headers: {
