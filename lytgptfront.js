@@ -117,11 +117,11 @@ function renderMarkdown(content) {
   return html;
 }
 
-
 /**
  * showSpinner / hideSpinner
  */
 function showSpinner(buttonElement, message) {
+  console.log('showSpinner called');
   if (!buttonElement) return;
   if (isScraping) {
       console.warn('Scraping already in progress.');
@@ -134,8 +134,9 @@ function showSpinner(buttonElement, message) {
 }
 
 function hideSpinner(buttonElement) {
+  console.log('hideSpinner called');
   if (!buttonElement) return;
-  buttonElement.innerHTML = buttonElement.dataset.originalText || '';
+  buttonElement.innerHTML = buttonElement.dataset.originalText || 'DeepB søk';
   buttonElement.disabled = false;
   isScraping = false;
 }
@@ -538,7 +539,10 @@ async function onSendMessage() {
     hideSpinner(sendButton);
   }
 }
-// Ny funksjon for å håndtere DeepB-søk
+
+/**
+ * Funksjon for å håndtere DeepB-søk
+ */
 async function handleDeepBSearch() {
   if (!currentChatId) {
       console.error("Ingen aktiv chat funnet");
@@ -586,7 +590,6 @@ async function handleDeepBSearch() {
   } finally {
       // Gjenopprett original button state
       hideSpinner(button);
-      button.textContent = originalButtonText;
   }
 }
 
