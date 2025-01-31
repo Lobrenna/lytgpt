@@ -10,7 +10,6 @@ const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const sendButton = document.getElementById('send-button');
 const deepbButton = document.getElementById('button-deepb');
-const deepbAgentButton = document.getElementById('button-deepb-agent');
 const uploadFilesButton = document.getElementById('upload-files-button');
 const urlInput = document.getElementById('url-input');
 const setUrlButton = document.getElementById('set-url-button');
@@ -546,7 +545,7 @@ async function handleDeepBSearch() {
       alert("Vennligst start en ny chat først");
       return;
   }
-  const button = document.getElementById('button-deepb');
+  const button = document.getElementById('button_deepb');
   const chatInput = document.getElementById('chat-input');
   // Lagre original button state
   const originalButtonText = button.textContent;
@@ -588,54 +587,6 @@ async function handleDeepBSearch() {
       // Gjenopprett original button state
       hideSpinner(button);
       button.textContent = originalButtonText;
-  }
-}
-
-async function handleDeepBAgent() {
-  if (!currentChatId) {
-    console.error("Ingen aktiv chat funnet");
-    alert("Vennligst start en ny chat først");
-    return;
-  }
-  const button = document.getElementById('button-deepb-agent');
-  const originalButtonText = button.textContent;
-  let message = ""; // 👈 Deklarer message HER
-  const model = "gpt-4o"; 
-
-
-  try {
-    showSpinner(button, 'Søker...');
-    message = document.getElementById('chat-input').value.trim();
-
-    console.log("message:", message);
-    const response = await fetch(
-      `${API_BASE_URL}/chats/${currentChatId}/deepb_agent`, 
-      {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ message, model }) // KUN message og model i body
-      }
-    );
-    console.log("Response:", response);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    if (data.response) {
-      if (chatInput) {
-        chatInput.value = '';
-      }
-      appendMessageToChat('assistant', renderMarkdown(data.response));
-      updateUIElements(data);
-    }
-  } catch (error) {
-    console.error('Feil ved DeepB-søk:', error);
-    appendMessageToChat('error', `Det oppstod en feil ved søket: ${error.message}`);
-  } finally {
-    hideSpinner(button);
-    button.textContent = originalButtonText;
   }
 }
 
@@ -1229,10 +1180,6 @@ function setupEventListeners() {
   if (deepbButton) {
     deepbButton.addEventListener('click', handleDeepBSearch);
     deepbButton.setAttribute('type', 'button');
-  }
-  if (deepbAgentButton) {
-    deepbAgentButton.addEventListener('click', handleDeepBAgent);
-    deepbAgentButton.setAttribute('type', 'button');
   }
   if (uploadFilesButton) {
     uploadFilesButton.addEventListener('click', onUploadFiles);
