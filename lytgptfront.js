@@ -535,15 +535,14 @@ function updateUIElements(data) {
 /**
  * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger
  */
-async function handleAgentStreamingRequest(message) {
+async function handleAgentStreamingRequest(message, progressMessageElement) {
     if (!currentChatId) {
         throw new Error('Ingen aktiv chat');
     }
 
     const encodedChatId = encodeURIComponent(currentChatId);
-    const streamUrl = `${API_BASE_URL}/chats/${encodedChatId}/messages/stream`;
-
-    // Opprett FormData
+    
+    // Opprett FormData for POST-data
     const formData = new FormData();
     formData.append('message', message);
     formData.append('model', selectedModel);
@@ -566,8 +565,8 @@ async function handleAgentStreamingRequest(message) {
         }
     });
 
-    // Start streaming request
-    const response = await fetch(streamUrl, {
+    // Først send POST-forespørselen for å starte streaming
+    const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages/stream`, {
         method: 'POST',
         body: formData,
     });
@@ -576,13 +575,7 @@ async function handleAgentStreamingRequest(message) {
         throw new Error(`Streaming feil: ${response.status} ${response.statusText}`);
     }
 
-    return response;
-}
-
-/**
- * processAgentStream - Behandler SSE-strømmen fra agent
- */
-async function processAgentStream(response, progressMessageElement) {
+    // Les response som tekst-strøm
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -598,15 +591,19 @@ async function processAgentStream(response, progressMessageElement) {
             buffer = lines.pop() || '';
 
             for (const line of lines) {
+                if (line.trim() === '') continue; // Skip tomme linjer
+                
                 if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
+                    const data = line.slice(6).trim();
                     
                     if (data === '[DONE]') {
+                        console.log('SSE: Streaming completed');
                         return; // Streaming ferdig
                     }
 
                     try {
                         const parsed = JSON.parse(data);
+                        console.log('SSE received:', parsed);
                         
                         switch (parsed.type) {
                             case 'status':
@@ -614,23 +611,18 @@ async function processAgentStream(response, progressMessageElement) {
                                 if (progressMessageElement && progressMessageElement.parentNode) {
                                     const progressText = `${parsed.message} (${parsed.progress || 0}%)`;
                                     progressMessageElement.innerHTML = progressText;
+                                    console.log('Updated progress:', progressText);
                                 }
                                 
                                 // Oppdater knapp-tekst basert på fremdrift
                                 if (sendButton) {
                                     const buttonText = getButtonTextForProgress(parsed.progress || 0, parsed.message);
-                                    if (sendButton.tagName === "INPUT") {
-                                        sendButton.value = buttonText;
-                                    } else {
-                                        // Behold spinner, men oppdater tekst
-                                        const spinnerHtml = sendButton.querySelector('.spinner') ? 
-                                            '<span class="spinner"></span>' : '';
-                                        sendButton.innerHTML = `${spinnerHtml}${buttonText}`;
-                                    }
+                                    updateButtonText(buttonText);
                                 }
                                 break;
                                 
                             case 'final_result':
+                                console.log('Final result received');
                                 // Fjern progress-meldingen
                                 if (progressMessageElement && progressMessageElement.parentNode) {
                                     progressMessageElement.parentNode.removeChild(progressMessageElement);
@@ -649,6 +641,7 @@ async function processAgentStream(response, progressMessageElement) {
                                 return;
                                 
                             case 'error':
+                                console.error('SSE error received:', parsed.message);
                                 // Fjern progress-meldingen
                                 if (progressMessageElement && progressMessageElement.parentNode) {
                                     progressMessageElement.parentNode.removeChild(progressMessageElement);
@@ -675,6 +668,22 @@ async function processAgentStream(response, progressMessageElement) {
         throw error;
     } finally {
         reader.releaseLock();
+    }
+}
+
+/**
+ * updateButtonText - Oppdaterer knapp-tekst med spinner
+ */
+function updateButtonText(text) {
+    if (sendButton) {
+        if (sendButton.tagName === "INPUT") {
+            sendButton.value = text;
+        } else {
+            // Behold spinner, men oppdater tekst
+            const spinnerHtml = sendButton.querySelector('.spinner') ? 
+                '<span class="spinner"></span>' : '';
+            sendButton.innerHTML = `${spinnerHtml}${text}`;
+        }
     }
 }
 
@@ -720,11 +729,13 @@ async function onSendMessage() {
       
       // Opprett progress-melding for streaming
       const progressMessage = appendMessageToChat('assistant', 'Agent starter...');
+      console.log('Progress message element created:', progressMessage);
       showSpinner(sendButton, 'Behandler...');
 
       try {
-          const response = await handleAgentStreamingRequest(message);
-          await processAgentStream(response, progressMessage);
+          console.log('Starting handleAgentStreamingRequest...');
+          await handleAgentStreamingRequest(message, progressMessage);
+          console.log('handleAgentStreamingRequest completed successfully');
           
       } catch (error) {
           console.error('Feil ved agent streaming:', error);
@@ -736,6 +747,7 @@ async function onSendMessage() {
           
           appendMessageToChat('error', `Det oppstod en feil: ${error.message}`);
       } finally {
+          console.log('Cleaning up - hiding spinner');
           hideSpinner(sendButton);
       }
       
