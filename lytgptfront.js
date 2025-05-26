@@ -579,37 +579,54 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         }
 
         console.log('POST request sent successfully, processing SSE stream...');
+        console.log('Response headers:', response.headers);
+        console.log('Response content-type:', response.headers.get('content-type'));
 
         // Prosesser SSE-stream ved å lese response body
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let chunkCount = 0;
 
         while (true) {
             const { done, value } = await reader.read();
+            chunkCount++;
+            
+            console.log(`Chunk ${chunkCount}: done=${done}, value length=${value ? value.length : 0}`);
             
             if (done) {
                 console.log('Stream completed (done=true)');
+                console.log('Final buffer content:', JSON.stringify(buffer));
                 break;
             }
 
             // Dekod nye data og legg til buffer
             const chunk = decoder.decode(value, { stream: true });
+            console.log(`Raw chunk ${chunkCount}:`, JSON.stringify(chunk));
             buffer += chunk;
+            console.log(`Buffer after chunk ${chunkCount}:`, JSON.stringify(buffer));
 
             // Split på linjer for SSE-parsing
             const lines = buffer.split('\n');
             buffer = lines.pop() || ''; // Behold siste ufullstendige linje
+            console.log(`Processing ${lines.length} lines, buffer after split:`, JSON.stringify(buffer));
 
-            for (const line of lines) {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
                 const trimmedLine = line.trim();
                 
-                if (trimmedLine === '') continue; // Skip tomme linjer
+                console.log(`Line ${i}: "${trimmedLine}"`);
+                
+                if (trimmedLine === '') {
+                    console.log(`Skipping empty line ${i}`);
+                    continue; // Skip tomme linjer
+                }
                 
                 console.log('Processing SSE line:', trimmedLine);
                 
                 if (trimmedLine.startsWith('data: ')) {
                     const dataContent = trimmedLine.slice(6); // Fjern 'data: ' prefix
+                    console.log('Extracted data content:', dataContent);
                     
                     if (dataContent === '[DONE]') {
                         console.log('SSE: Streaming completed with [DONE]');
@@ -620,11 +637,14 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                         const parsed = JSON.parse(dataContent);
                         console.log('SSE parsed data:', parsed);
                         
-                        switch (parsed.type) {
+                        switch (parsed.type || parsed.status) {
                             case 'status':
                             case 'progress':
+                            case 'processing':
+                            case 'agent_processing':
+                            case 'agent_step':
                                 if (progressMessageElement && progressMessageElement.parentNode) {
-                                    const progressText = `${parsed.message} (${parsed.progress || 0}%)`;
+                                    const progressText = parsed.message || `${parsed.message} (${parsed.progress || 0}%)`;
                                     progressMessageElement.innerHTML = progressText;
                                     console.log('Updated progress:', progressText);
                                 }
@@ -637,6 +657,8 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 break;
                                 
                             case 'final_result':
+                            case 'agent_response':
+                            case 'complete':
                                 console.log('Final result received');
                                 // Fjern progress-meldingen
                                 if (progressMessageElement && progressMessageElement.parentNode) {
@@ -644,12 +666,15 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 }
                                 
                                 // Vis endelig resultat
-                                appendMessageToChat('assistant', renderMarkdown(parsed.response));
+                                const finalContent = parsed.response || parsed.content || parsed.message;
+                                if (finalContent) {
+                                    appendMessageToChat('assistant', renderMarkdown(finalContent));
+                                }
                                 
                                 // Oppdater UI-elementer hvis tilgjengelig
-                                if (parsed.selected_model || parsed.estimated_tokens) {
+                                if (parsed.selected_model || parsed.estimated_tokens || parsed.model) {
                                     updateUIElements({
-                                        selected_model: parsed.selected_model,
+                                        selected_model: parsed.selected_model || parsed.model,
                                         estimated_tokens: parsed.estimated_tokens
                                     });
                                 }
@@ -665,10 +690,30 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 // Vis feilmelding
                                 appendMessageToChat('error', `Feil: ${parsed.message}`);
                                 return;
+                                
+                            default:
+                                // Håndter meldinger uten type/status (som content-only meldinger)
+                                if (parsed.content && !parsed.index) {
+                                    // Dette er sannsynligvis final content uten type
+                                    console.log('Received content without type, treating as final result');
+                                    if (progressMessageElement && progressMessageElement.parentNode) {
+                                        progressMessageElement.parentNode.removeChild(progressMessageElement);
+                                    }
+                                    appendMessageToChat('assistant', renderMarkdown(parsed.content));
+                                    return;
+                                } else if (parsed.content && parsed.index !== undefined) {
+                                    // Dette er character-by-character streaming (ikke ønsket)
+                                    console.warn('Received character-by-character streaming, ignoring:', parsed);
+                                } else {
+                                    console.warn('Unhandled SSE message type:', parsed);
+                                }
+                                break;
                         }
                     } catch (parseError) {
                         console.warn('Kunne ikke parse SSE data:', dataContent, parseError);
                     }
+                } else {
+                    console.log('Line does not start with "data: ":', trimmedLine);
                 }
             }
         }
@@ -1390,7 +1435,7 @@ async function loadChat(chatId) {
     } else {
       console.warn("Chat ikke funnet, oppretter ny chat.");
       currentChatId = await createNewChat();
-      appendMessageToChat("assistant", "Ny chat opprettet. Hvordan kan jeg hjelpe deg?");
+      appendMessageToChat("assistant", renderMarkdown("Ny chat opprettet. Hvordan kan jeg hjelpe deg?"));
     }
   } catch (error) {
     console.error("Feil ved lasting av chat:", error);
