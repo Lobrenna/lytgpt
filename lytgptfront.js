@@ -612,6 +612,19 @@ async function processAgentStream(response, progressMessageElement) {
                                     const progressText = `${parsed.message} (${parsed.progress || 0}%)`;
                                     progressMessageElement.innerHTML = progressText;
                                 }
+                                
+                                // Oppdater knapp-tekst basert på fremdrift
+                                if (sendButton) {
+                                    const buttonText = getButtonTextForProgress(parsed.progress || 0, parsed.message);
+                                    if (sendButton.tagName === "INPUT") {
+                                        sendButton.value = buttonText;
+                                    } else {
+                                        // Behold spinner, men oppdater tekst
+                                        const spinnerHtml = sendButton.querySelector('.spinner') ? 
+                                            '<span class="spinner"></span>' : '';
+                                        sendButton.innerHTML = `${spinnerHtml}${buttonText}`;
+                                    }
+                                }
                                 break;
                                 
                             case 'final_result':
@@ -660,6 +673,26 @@ async function processAgentStream(response, progressMessageElement) {
     } finally {
         reader.releaseLock();
     }
+}
+
+/**
+ * getButtonTextForProgress - Gir passende knapp-tekst basert på fremdrift
+ */
+function getButtonTextForProgress(progress, message) {
+    if (progress === 0) return 'Starter agent...';
+    if (progress <= 20) return 'Planlegger...';
+    if (progress <= 40) return 'Forbereder...';
+    if (progress <= 60) return 'Initialiserer...';
+    if (progress <= 80) return 'Utfører...';
+    if (progress < 100) return 'Fullfører...';
+    
+    // Fallback til kort versjon av melding hvis tilgjengelig
+    if (message) {
+        const shortMessage = message.split(' ')[0] + '...';
+        return shortMessage.length > 15 ? 'Behandler...' : shortMessage;
+    }
+    
+    return 'Behandler...';
 }
 
 async function onSendMessage() {
