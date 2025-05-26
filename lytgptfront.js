@@ -533,7 +533,7 @@ function updateUIElements(data) {
 }
 
 /**
- * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger
+ * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger med EventSource
  */
 async function handleAgentStreamingRequest(message, progressMessageElement) {
     if (!currentChatId) {
@@ -565,7 +565,9 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         }
     });
 
-    // Først send POST-forespørselen for å starte streaming
+    console.log('Sending POST request to start streaming...');
+    
+    // Send POST-forespørsel for å starte streaming-prosessen
     const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages/stream`, {
         method: 'POST',
         body: formData,
@@ -575,7 +577,9 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         throw new Error(`Streaming feil: ${response.status} ${response.statusText}`);
     }
 
-    // Les response som tekst-strøm
+    console.log('POST request sent successfully, reading response stream...');
+
+    // Les response som tekst-strøm (manuell SSE parsing)
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -584,7 +588,10 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         while (true) {
             const { done, value } = await reader.read();
             
-            if (done) break;
+            if (done) {
+                console.log('Stream completed (done=true)');
+                break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
@@ -592,6 +599,8 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
 
             for (const line of lines) {
                 if (line.trim() === '') continue; // Skip tomme linjer
+                
+                console.log('Received line:', line);
                 
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6).trim();
