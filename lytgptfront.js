@@ -272,7 +272,7 @@ async function populateLongSelector() {
 function appendMessageToChat(role, content) {
   if (!chatMessages) {
       console.error("Chat messages element not found.");
-      return;
+      return null;
   }
   const msgEl = document.createElement('div');
   msgEl.classList.add('chat-message', role);
@@ -306,6 +306,9 @@ function appendMessageToChat(role, content) {
       top: chatMessages.scrollHeight,
       behavior: 'smooth'
   });
+  
+  // Return the created element so it can be updated later
+  return msgEl;
 }
 
 /**
