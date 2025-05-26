@@ -1216,7 +1216,7 @@ function handleFileSelection(event) {
       newUploadDiv.innerHTML = `
         <div class="w-file-upload-default">
           <input class="w-file-upload-input" 
-                 accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl"
+                 accept=".ai, .doc, .docx, .indd, .key, .numbers, .pps, .ppt, .pptx, .psd, .ods, .odt, .odp, .pages, .pdf, .txt, .xls, .xlsx, .csv, .pkl, .py, .js"
                  name="file"
                  data-name="File"
                  type="file"
