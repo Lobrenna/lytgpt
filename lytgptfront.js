@@ -529,6 +529,139 @@ function updateUIElements(data) {
   }
 }
 
+/**
+ * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger
+ */
+async function handleAgentStreamingRequest(message) {
+    if (!currentChatId) {
+        throw new Error('Ingen aktiv chat');
+    }
+
+    const encodedChatId = encodeURIComponent(currentChatId);
+    const streamUrl = `${API_BASE_URL}/chats/${encodedChatId}/messages/stream`;
+
+    // Opprett FormData
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('model', selectedModel);
+
+    // Håndter long context selection
+    const longSelector = document.getElementById('long-selector');
+    if (longSelector && longSelector.value) {
+        formData.append("long_context_selection", longSelector.value);
+    }
+
+    // Håndter filopplastinger
+    const fileInputs = document.querySelectorAll('.w-file-upload-input');
+    fileInputs.forEach((input, index) => {
+        const backendFile = input.getAttribute('data-backend-file');
+        if (backendFile) {
+            formData.append('backend_files', backendFile);
+        }
+        if (input.files && input.files[0]) {
+            formData.append('files', input.files[0]);
+        }
+    });
+
+    // Start streaming request
+    const response = await fetch(streamUrl, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Streaming feil: ${response.status} ${response.statusText}`);
+    }
+
+    return response;
+}
+
+/**
+ * processAgentStream - Behandler SSE-strømmen fra agent
+ */
+async function processAgentStream(response, progressMessageElement) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    
+                    if (data === '[DONE]') {
+                        return; // Streaming ferdig
+                    }
+
+                    try {
+                        const parsed = JSON.parse(data);
+                        
+                        switch (parsed.type) {
+                            case 'status':
+                            case 'progress':
+                                if (progressMessageElement && progressMessageElement.parentNode) {
+                                    const progressText = `${parsed.message} (${parsed.progress || 0}%)`;
+                                    progressMessageElement.innerHTML = progressText;
+                                }
+                                break;
+                                
+                            case 'final_result':
+                                // Fjern progress-meldingen
+                                if (progressMessageElement && progressMessageElement.parentNode) {
+                                    progressMessageElement.parentNode.removeChild(progressMessageElement);
+                                }
+                                
+                                // Vis endelig resultat
+                                appendMessageToChat('assistant', renderMarkdown(parsed.response));
+                                
+                                // Oppdater UI-elementer hvis tilgjengelig
+                                if (parsed.selected_model || parsed.estimated_tokens) {
+                                    updateUIElements({
+                                        selected_model: parsed.selected_model,
+                                        estimated_tokens: parsed.estimated_tokens
+                                    });
+                                }
+                                return;
+                                
+                            case 'error':
+                                // Fjern progress-meldingen
+                                if (progressMessageElement && progressMessageElement.parentNode) {
+                                    progressMessageElement.parentNode.removeChild(progressMessageElement);
+                                }
+                                
+                                // Vis feilmelding
+                                appendMessageToChat('error', `Feil: ${parsed.message}`);
+                                return;
+                        }
+                    } catch (parseError) {
+                        console.warn('Kunne ikke parse SSE data:', data, parseError);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Feil under streaming:', error);
+        
+        // Fjern progress-meldingen ved feil
+        if (progressMessageElement && progressMessageElement.parentNode) {
+            progressMessageElement.parentNode.removeChild(progressMessageElement);
+        }
+        
+        throw error;
+    } finally {
+        reader.releaseLock();
+    }
+}
+
 async function onSendMessage() {
   if (!chatInput || !chatInput.value.trim()) return;
 
@@ -541,10 +674,39 @@ async function onSendMessage() {
       return;
   }
 
-  // Vanlig chat-melding sendes her
+  // Vis brukerens melding i chatvinduet
   appendMessageToChat('user', renderMarkdown(message));
   chatInput.value = '';
 
+  // Sjekk om det er en @agent melding for streaming
+  if (message.toLowerCase().includes("@agent")) {
+      console.log("Detected @agent in message, using streaming...");
+      
+      // Opprett progress-melding for streaming
+      const progressMessage = appendMessageToChat('assistant', 'Agent starter...');
+      showSpinner(sendButton, 'Behandler...');
+
+      try {
+          const response = await handleAgentStreamingRequest(message);
+          await processAgentStream(response, progressMessage);
+          
+      } catch (error) {
+          console.error('Feil ved agent streaming:', error);
+          
+          // Fjern progress-meldingen ved feil
+          if (progressMessage && progressMessage.parentNode) {
+              progressMessage.parentNode.removeChild(progressMessage);
+          }
+          
+          appendMessageToChat('error', `Det oppstod en feil: ${error.message}`);
+      } finally {
+          hideSpinner(sendButton);
+      }
+      
+      return;
+  }
+
+  // Vanlig chat-melding (ikke @agent)
   const generatingMessage = appendMessageToChat('assistant', 'Genererer svar...');
   showSpinner(sendButton, 'Genererer...');
 
