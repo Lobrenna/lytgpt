@@ -533,7 +533,7 @@ function updateUIElements(data) {
 }
 
 /**
- * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger med EventSource
+ * handleAgentStreamingRequest - Håndterer streaming for @agent meldinger
  */
 async function handleAgentStreamingRequest(message, progressMessageElement) {
     if (!currentChatId) {
@@ -567,24 +567,24 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
 
     console.log('Sending POST request to start streaming...');
     
-    // Send POST-forespørsel for å starte streaming-prosessen
-    const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages/stream`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error(`Streaming feil: ${response.status} ${response.statusText}`);
-    }
-
-    console.log('POST request sent successfully, reading response stream...');
-
-    // Les response som tekst-strøm (manuell SSE parsing)
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
     try {
+        // Send POST-forespørsel for å starte streaming-prosessen
+        const response = await fetch(`${API_BASE_URL}/chats/${encodedChatId}/messages/stream`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error(`Streaming feil: ${response.status} ${response.statusText}`);
+        }
+
+        console.log('POST request sent successfully, processing SSE stream...');
+
+        // Prosesser SSE-stream ved å lese response body
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
         while (true) {
             const { done, value } = await reader.read();
             
@@ -593,26 +593,32 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                 break;
             }
 
-            buffer += decoder.decode(value, { stream: true });
+            // Dekod nye data og legg til buffer
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+
+            // Split på linjer for SSE-parsing
             const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
+            buffer = lines.pop() || ''; // Behold siste ufullstendige linje
 
             for (const line of lines) {
-                if (line.trim() === '') continue; // Skip tomme linjer
+                const trimmedLine = line.trim();
                 
-                console.log('Received line:', line);
+                if (trimmedLine === '') continue; // Skip tomme linjer
                 
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6).trim();
+                console.log('Processing SSE line:', trimmedLine);
+                
+                if (trimmedLine.startsWith('data: ')) {
+                    const dataContent = trimmedLine.slice(6); // Fjern 'data: ' prefix
                     
-                    if (data === '[DONE]') {
-                        console.log('SSE: Streaming completed');
+                    if (dataContent === '[DONE]') {
+                        console.log('SSE: Streaming completed with [DONE]');
                         return; // Streaming ferdig
                     }
 
                     try {
-                        const parsed = JSON.parse(data);
-                        console.log('SSE received:', parsed);
+                        const parsed = JSON.parse(dataContent);
+                        console.log('SSE parsed data:', parsed);
                         
                         switch (parsed.type) {
                             case 'status':
@@ -661,7 +667,7 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 return;
                         }
                     } catch (parseError) {
-                        console.warn('Kunne ikke parse SSE data:', data, parseError);
+                        console.warn('Kunne ikke parse SSE data:', dataContent, parseError);
                     }
                 }
             }
@@ -675,8 +681,6 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         }
         
         throw error;
-    } finally {
-        reader.releaseLock();
     }
 }
 
