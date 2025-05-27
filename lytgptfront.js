@@ -582,6 +582,11 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         console.log('Response headers:', response.headers);
         console.log('Response content-type:', response.headers.get('content-type'));
 
+        // Fjern initial progress message siden vi vil vise hver melding
+        if (progressMessageElement && progressMessageElement.parentNode) {
+            progressMessageElement.parentNode.removeChild(progressMessageElement);
+        }
+
         // Prosesser SSE-stream ved å lese response body
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -643,11 +648,10 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                             case 'processing':
                             case 'agent_processing':
                             case 'agent_step':
-                                if (progressMessageElement && progressMessageElement.parentNode) {
-                                    const progressText = parsed.message || `${parsed.message} (${parsed.progress || 0}%)`;
-                                    progressMessageElement.innerHTML = progressText;
-                                    console.log('Updated progress:', progressText);
-                                }
+                                // For Enhanced Dynamic Agent, vis hver melding som en ny assistant-melding
+                                const statusMessage = parsed.message || `Status: ${parsed.progress || 0}%`;
+                                appendMessageToChat('assistant', `🤖 ${statusMessage}`);
+                                console.log('Added agent step message:', statusMessage);
                                 
                                 // Oppdater knapp-tekst basert på fremdrift
                                 if (sendButton) {
@@ -660,10 +664,6 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                             case 'agent_response':
                             case 'complete':
                                 console.log('Final result received');
-                                // Fjern progress-meldingen
-                                if (progressMessageElement && progressMessageElement.parentNode) {
-                                    progressMessageElement.parentNode.removeChild(progressMessageElement);
-                                }
                                 
                                 // Vis endelig resultat
                                 const finalContent = parsed.response || parsed.content || parsed.message;
@@ -682,10 +682,6 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 
                             case 'error':
                                 console.error('SSE error received:', parsed.message);
-                                // Fjern progress-meldingen
-                                if (progressMessageElement && progressMessageElement.parentNode) {
-                                    progressMessageElement.parentNode.removeChild(progressMessageElement);
-                                }
                                 
                                 // Vis feilmelding
                                 appendMessageToChat('error', `Feil: ${parsed.message}`);
@@ -696,9 +692,6 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
                                 if (parsed.content && !parsed.index) {
                                     // Dette er sannsynligvis final content uten type
                                     console.log('Received content without type, treating as final result');
-                                    if (progressMessageElement && progressMessageElement.parentNode) {
-                                        progressMessageElement.parentNode.removeChild(progressMessageElement);
-                                    }
                                     appendMessageToChat('assistant', renderMarkdown(parsed.content));
                                     return;
                                 } else if (parsed.content && parsed.index !== undefined) {
@@ -719,12 +712,6 @@ async function handleAgentStreamingRequest(message, progressMessageElement) {
         }
     } catch (error) {
         console.error('Feil under streaming:', error);
-        
-        // Fjern progress-meldingen ved feil
-        if (progressMessageElement && progressMessageElement.parentNode) {
-            progressMessageElement.parentNode.removeChild(progressMessageElement);
-        }
-        
         throw error;
     }
 }
@@ -785,24 +772,16 @@ async function onSendMessage() {
   if (message.toLowerCase().includes("@agent")) {
       console.log("Detected @agent in message, using streaming...");
       
-      // Opprett progress-melding for streaming
-      const progressMessage = appendMessageToChat('assistant', 'Agent starter...');
-      console.log('Progress message element created:', progressMessage);
+      // Start Enhanced Dynamic Agent streaming (no initial progress message needed)
       showSpinner(sendButton, 'Behandler...');
 
       try {
           console.log('Starting handleAgentStreamingRequest...');
-          await handleAgentStreamingRequest(message, progressMessage);
+          await handleAgentStreamingRequest(message, null); // Pass null since we don't need progress element
           console.log('handleAgentStreamingRequest completed successfully');
           
       } catch (error) {
           console.error('Feil ved agent streaming:', error);
-          
-          // Fjern progress-meldingen ved feil
-          if (progressMessage && progressMessage.parentNode) {
-              progressMessage.parentNode.removeChild(progressMessage);
-          }
-          
           appendMessageToChat('error', `Det oppstod en feil: ${error.message}`);
       } finally {
           console.log('Cleaning up - hiding spinner');
